@@ -4,3 +4,5 @@
 
 # BananaLoot
 Vanilla Master Loot Addon for OctoWoW
+
+WIP: will bei relesed Soon! 
