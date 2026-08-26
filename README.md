@@ -3,6 +3,8 @@
 </p>
 
 # 🍌 BananaLoot
-Vanilla Master Loot Addon for OctoWoW
+**BananaLoot** will bei the new Standart Vanilla Master Loot Addon for OctoWoW
+
+Created by Bareg
 
 WIP: will bei relesed Soon! 
