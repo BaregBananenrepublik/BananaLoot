@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="main/BananaLoot.png" alt="BananaLoot" width="400">
+  <img src="Media/BananaLoot.png" alt="BananaLoot" width="400">
 </p>
 
 # BananaLoot
