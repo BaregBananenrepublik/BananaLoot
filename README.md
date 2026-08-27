@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="BananaLoot.png" alt="BananaLoot" width="400">
+</p>
+
 # 🍌 BananaLoot
 
 **Masterloot addon with chat-based soft-reserves and a local SR+ bonus system**
