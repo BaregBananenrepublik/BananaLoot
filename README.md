@@ -10,6 +10,8 @@ for World of Warcraft Classic 1.12 (OctoWoW, Turtle WoW, and similar Vanilla ser
 Behavior is inspired by the well-known RollFor workflow – the code itself is
 fully original (no code copied from elsewhere).
 
+1. Download [Latest Version](https://github.com/DEIN-USERNAME/BananaLoot/releases/latest)
+
 ---
 
 ## What is BananaLoot?
