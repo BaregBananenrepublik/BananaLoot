@@ -2,7 +2,7 @@
   <img src="BananaLoot.png" alt="BananaLoot" width="400">
 </p>
 
-# 🍌 BananaLoot **(BETA)**
+# 🍌 BananaLoot **(Alpha)**
 
 **Masterloot addon with chat-based soft-reserves and a local SR+ bonus system**
 for World of Warcraft Classic 1.12 (OctoWoW, Turtle WoW, and similar Vanilla servers)
