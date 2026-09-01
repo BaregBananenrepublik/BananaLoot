@@ -163,5 +163,5 @@ No loot tool is perfect – here are the deliberate trade-offs:
 Use at your own risk. Not a substitute for common sense while master looting. 🍌
 
 <p align="center">
-  <img src="BananaLootIcom.jpg" alt="BananaLoot" width="400">
+  <img src="BananaLootIcon.jpg" alt="BananaLoot" width="400">
 </p>
