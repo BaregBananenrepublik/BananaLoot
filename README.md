@@ -158,6 +158,13 @@ No loot tool is perfect – here are the deliberate trade-offs:
 
 ---
 
+## ☕ Support the Project
+
+If you enjoy BananaLoot and want to support its development:
+
+[☕ Buy me a Coffee](https://www.buymeacoffee.com/bareg)
+
+---
 ## License
 
 Use at your own risk. Not a substitute for common sense while master looting. 🍌
