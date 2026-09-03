@@ -157,7 +157,7 @@ No loot tool is perfect – here are the deliberate trade-offs:
 
 **Bareg**
 
-Made for my Guild the Banenrepublic🍌
+🍌 Made for my Guild the Banenrepublik 🍌
 
 ---
 
