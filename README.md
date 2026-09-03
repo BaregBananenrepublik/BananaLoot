@@ -156,6 +156,7 @@ No loot tool is perfect – here are the deliberate trade-offs:
 ## Author
 
 **Bareg**
+Made for my Guild the Banenrepublic🍌
 
 ---
 
