@@ -99,6 +99,7 @@ client – everything runs entirely locally via SavedVariables.
 1. Copy the `BananaLoot` folder into `World of Warcraft/Interface/AddOns/`
 2. Restart the client or `/reload`
 3. Keep it enabled under "AddOns" on the character selection screen
+4. The addon can be switched from German to English with a single click in the options.
 
 ---
 
