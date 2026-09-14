@@ -303,6 +303,9 @@ If you enjoy BananaLoot and want to support its development:
 
 Use at your own risk. Not a substitute for common sense while master looting. 🍌
 
+BananaLoot's original source code and original artwork are licensed under the MIT License.
+The bundled item database contains data derived from AtlasLoot / AtlasLootClassic. See THIRD_PARTY_NOTICES.md for attribution and source information.
+
 <p align="center">
   <img src="BananaLootIcon.jpg" alt="BananaLoot" width="400">
 </p>
