@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="BananaLoot.png" alt="BananaLoot" width="400">
+  <img src="assets/BananaLoot.png" alt="BananaLoot" width="400">
 </p>
 
 # 🍌 BananaLoot
@@ -10,7 +10,9 @@ for World of Warcraft Classic 1.12 (OctoWoW, Turtle WoW, and similar Vanilla ser
 Behavior is inspired by the well-known RollFor workflow – the code itself is
 fully original (no code copied from elsewhere).
 
-1. Download [Latest Version](https://github.com/BaregBananenrepublik/BananaLoot/releases/latest)
+Part of [BananaForge](https://github.com/BananaForge).
+
+**⬇️ [Download the latest version](https://github.com/BananaForge/BananaLoot/releases/latest)**
 
 ---
 
@@ -38,6 +40,8 @@ BananaLoot never talks to the internet on its own.
   automatically drops the old one (with a heads-up sent via whisper).
   Optionally configurable up to 4 simultaneous reservations per player
   (Options → General)
+- `/bl sr [Item]` / `/bl unsr [Item]` let the master looter reserve for
+  themselves (you can't whisper yourself)
 - The SR list can be locked/unlocked for the whole raid with one click –
   while locked, new `sr`/`unsr` whispers are politely declined, but you can
   still edit everything manually in the Manage window
@@ -207,20 +211,32 @@ BananaLoot never talks to the internet on its own.
   correctly colored item name immediately, instead of just "Item #12345"
   until the item actually drops
 
+### LFM poster for the world channel
+- `/bl lfm` (or the **LFM** button in the SR window) opens a small window
+  that posts a text of your choice to the world channel at a fixed
+  interval – e.g. for PUG raid ads or to replace a player who left
+- Up to 255 characters with a live counter, interval in minutes
+  (minimum 1, to stay clear of the server's chat spam protection)
+- One Start/Stop button; text and interval are saved, but posting
+  **never** restarts on its own after a relog or `/reload`
+- The world channel's number is looked up by name before every post
+  instead of being hard-wired to `/4`
+
 ### CSV export for Google Sheets
 - Export the SR list and the full loot log as tab-separated text
 - Just paste into an empty cell in Google Sheets – done
 
 ### Options
-- Split into three tabs (General / Display & Sound / Management) instead
-  of one long scrolling list
-- General: SR+ bonus per stack, roll timeout, chat countdown, unknown-
-  command replies, max. simultaneous SR per player, auto Master Loot on
-  boss target, Roll-Sync, multi-drop ("top rolls win"), trade tracking
-- Display & Sound: language (German/English, one click), UI scale
-  (50–150%, handy on small screens), loot preview toggle, and individual
-  sound toggles for loot detected / roll started / winner determined /
-  item awarded / button clicks (plus one master switch for all of them)
+- Split into five tabs; the window adjusts its height to the active tab
+- General: SR+ bonus per stack, roll timeout, max. simultaneous SR per
+  player, unknown-command replies
+- Automation: auto Master Loot on boss target, multi-drop ("top rolls
+  win"), loot preview, chat countdown
+- Network: Roll-Sync (plus the master looter's own popup), trade tracking
+- Display & Sound: language (German/English, one click), UI scale and a
+  separate loot window scale (50–150%, handy on small screens), and
+  individual sound toggles for loot detected / roll started / winner
+  determined / item awarded / button clicks (plus one master switch)
 - Management: new raid, full SR+ wipe, CSV exports, log clearing, SR+
   recovery
 
@@ -234,17 +250,26 @@ BananaLoot never talks to the internet on its own.
   loot method between Master Loot and Group Loot with one click (only
   works while you're the party/raid leader)
 - Optional automatic switch to Master Loot when targeting a known raid
-  boss (Options → General)
+  boss (Options → Automation)
 
 ---
 
 ## Installation
 
-1. Copy the `BananaLoot` folder into `World of Warcraft/Interface/AddOns/`
-2. Restart the client or `/reload`
-3. Keep it enabled under "AddOns" on the character selection screen
-4. The addon can be switched from German to English with a single click
+1. Download `BananaLoot-<version>.zip` from the
+   [latest release](https://github.com/BananaForge/BananaLoot/releases/latest)
+2. Extract it into `World of Warcraft/Interface/AddOns/` – you should end up
+   with `Interface/AddOns/BananaLoot/BananaLoot.toc`
+3. Restart the client or `/reload`
+4. Keep it enabled under "AddOns" on the character selection screen
+5. The addon can be switched from German to English with a single click
    under Options → Display & Sound
+
+> **Don't use GitHub's green "Code → Download ZIP" button.** It produces a
+> folder called `BananaLoot-main`, and the client then finds neither the
+> addon nor its icons. If you did, rename the folder to `BananaLoot`.
+
+The release ZIP also contains `ANLEITUNG.txt`, the full German manual.
 
 ---
 
@@ -257,6 +282,7 @@ BananaLoot never talks to the internet on its own.
 | `/bl auto` | Automatically work through the current loot chest |
 | `/bl award` | Award the most recently evaluated item to the winner |
 | `/bl arf [Item]` | Open roll for everyone, SR suspended for this roll |
+| `/bl sr [Item]` / `/bl unsr [Item]` | Reserve / unreserve an item for yourself as master looter |
 | `/bl stop` | Cancel auto mode / the active roll |
 | `/bl reset` | Clear all current reservations (SR+ values are kept) |
 | `/bl wipeplus` | Completely reset all SR+ values |
@@ -266,6 +292,8 @@ BananaLoot never talks to the internet on its own.
 | `/bl br [Item]` / `/bl br remove [Item]` / `/bl br` | Manage the Bank Reserve list |
 | `/bl recover` | Show the SR+ recovery list |
 | `/bl history` | Show the shared loot history for this session (Roll-Sync) |
+| `/bl clearlog` | Clear the loot log (e.g. at the start of a season) |
+| `/bl lfm` | Open the LFM window (timed posts in the world channel) |
 | `/bl options` | Open settings |
 
 Full command overview is also available in-game via the **?** button in
@@ -310,13 +338,45 @@ No loot tool is perfect – here are the deliberate trade-offs:
   `World of Warcraft/WTF/Account/<ACCOUNT>/SavedVariables/BananaLoot.lua`
   and survives relogs and patches
 
+### Repository layout
+
+```
+BananaLoot.toc            Addon manifest (version lives here and in BananaLoot.lua)
+BananaLootItemDB.lua      Static item database (AtlasLoot-derived data)
+BananaLoot.lua            Core: SavedVariables, locales, whispers, rolls, awarding,
+                          raidres.top import, Roll-Sync, trade tracking, slash commands
+BananaLootUI.lua          SR window, loot window, Roll-Sync popup
+BananaLootExtra.lua       Options, Manage window, HR/BR lists, export/import, CSV,
+                          SR+ recovery, LFM, Save/Load Raid, minimap button
+Icons/                    TGA textures loaded in-game
+docs/ANLEITUNG.txt        Full German user manual (shipped in the release ZIP)
+docs/ENTWICKLUNG.md       Developer notes (German)
+tools/                    Checks run by CI: syntax, Lua 5.0 compatibility, TOC, version
+assets/                   Images for this README only (not shipped)
+```
+
+### Development
+
+- `bash tools/run_tests.sh` runs all checks locally (needs `lua5.1`).
+  They also run on every push via GitHub Actions.
+- **Releasing:** bump `## Version:` in `BananaLoot.toc` *and*
+  `BananaLoot.VERSION` in `BananaLoot.lua`, add a `CHANGELOG.md` entry,
+  push to `main`. The release workflow tags the version and attaches a
+  correctly named `BananaLoot-<version>.zip`.
+
+---
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
+
 ---
 
 ## Author
 
 **Bareg**
 
-🍌 Made for my Guild the Banenrepublik 🍌
+🍌 Made for my guild, the Bananenrepublik – part of [BananaForge](https://github.com/BananaForge) 🍌
 
 ---
 
@@ -357,5 +417,5 @@ BananaLoot's original source code and original artwork are licensed under the MI
 The bundled item database contains data derived from AtlasLoot / AtlasLootClassic. See THIRD_PARTY_NOTICES.md for attribution and source information.
 
 <p align="center">
-  <img src="BananaLootIcon.jpg" alt="BananaLoot" width="400">
+  <img src="assets/BananaLootIcon.jpg" alt="BananaLoot" width="400">
 </p>

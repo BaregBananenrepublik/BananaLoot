@@ -1,0 +1,438 @@
+BananaLoot – Masterloot-Addon mit lokalem SoftReserve & SR+ System
+für OctoWoW / Turtle WoW (Vanilla 1.12)
+==================================================================
+
+Verhalten orientiert sich am Workflow von RollFor. Kompletter
+eigener Code (kein Fremdcode kopiert).
+
+INSTALLATION
+------------
+1. Ordner "BananaLoot" nach World of Warcraft/Interface/AddOns/ kopieren.
+2. Client neu starten oder /reload.
+3. Im Charakterauswahl-Bildschirm unter "AddOns" aktiviert lassen.
+
+BEDIENUNG (Masterlooter)
+-------------------------
+/bl            -> öffnet/schließt das SR-Fenster (Übersicht aller
+                   aktuellen Reservierungen, dauerhaft nutzbar)
+/bl loot       -> öffnet/schließt das separate Loot-Fenster (öffnet
+                   sich zusätzlich automatisch, sobald Loot verfügbar
+                   ist). Enthält Roll/ARF/Vergeben je Item.
+/bl auto       -> arbeitet die aktuell gelootete Kiste automatisch
+                   nacheinander ab: startet für jedes Item einen Roll
+                   (Items ohne SR zuerst, offen für alle; SR-Items
+                   danach, nur für die Reservierer), wartet auf deine
+                   Vergabe-Bestätigung und macht dann automatisch weiter.
+                   Alternativ per "Auto: An/Aus"-Button oben im
+                   Loot-Fenster umschaltbar, ohne den Befehl zu tippen.
+/bl stop       -> bricht Auto-Modus und einen laufenden Roll sofort ab.
+                   Alternativ per "Stopp"-Button oben im Loot-Fenster,
+                   direkt neben "Auto: An/Aus". Wichtig: der Auto-Button
+                   allein bricht einen laufenden Roll NICHT ab (nur den
+                   Auto-Fortschritt zum nächsten Item) -- dafür ist
+                   dieser Stop-Button/-Befehl da.
+/bl award      -> vergibt das zuletzt ausgewertete Item an den
+                   ermittelten Gewinner (Alternative zum Klick im Fenster)
+/bl arf [Item] -> startet einen offenen Roll für ALLE, auch wenn das
+                   Item SR't ist (SR wird für diesen einen Roll
+                   ausgesetzt). Item per Shift-Klick anhängen.
+                   Alternative: "ARF"-Button in jeder Item-Zeile im Fenster.
+/bl sr [Item]  -> reserviert ein Item für dich selbst (als Loot-Master).
+                   Gedacht als Ersatz für den normalen Whisper-Weg
+                   ("sr [Item]" an den Loot-Master schicken), da man
+                   sich selbst nicht anwhispern kann. Item per
+                   Shift-Klick anhängen.
+/bl unsr [Item]-> entfernt deine eigene Reservierung wieder.
+/bl reset      -> löscht alle AKTUELLEN Reservierungen (SR+ bleibt)
+/bl wipeplus   -> setzt ALLE SR+ Werte komplett zurück
+/bl export     -> zeigt die aktuelle SR-Liste als kopierbaren Text,
+                   um sie an deine Vertretung zu schicken
+/bl import     -> Text von deiner Vertretung einfügen und übernehmen
+/bl options    -> öffnet die Einstellungen (z.B. SR+ Bonus pro Stufe)
+/bl csv         -> zeigt die aktuelle SR-Liste als Tab-getrennten Text
+                   zum Einfügen in Google Sheets
+/bl csvlog      -> zeigt das komplette Loot-Log (wer hat was bekommen,
+                   inkl. Datum/Uhrzeit) als Tab-getrennten Text
+/bl clearlog    -> leert das Loot-Log (z.B. zu Saisonbeginn)
+/bl history     -> zeigt die geteilte Loot-Historie (wer hat was von
+                   wem bekommen) für alle Raid-Mitglieder mit
+                   BananaLoot und aktiviertem Roll-Sync (siehe unten,
+                   Abschnitt ROLL-SYNC). Nur für die aktuelle Session,
+                   wird nicht gespeichert. Bankreserve-Vergaben
+                   erscheinen dort bewusst NICHT (bleiben lautlos).
+/bl hr [Item]   -> markiert ein Item als Hard Reserve (dauerhaft, bis
+                   manuell entfernt). Wird NICHT in der Auto-Roll-
+                   Schleife verrollt, sondern nur manuell im
+                   "Verwalten"-Fenster vergeben. Spieler, die es per
+                   Whisper SR'en wollen, werden automatisch abgewiesen
+                   und darauf hingewiesen, ein anderes Item zu SR'en -
+                   ihr SR wird dabei NICHT gesetzt.
+/bl hr          -> öffnet die Liste aller aktuellen Hard-Reserve-Items
+                   (mit "Entfernen"-Button je Item)
+/bl hr remove [Item] -> entfernt ein Item wieder von Hard Reserve
+/bl br [Item]   -> markiert ein Item als Bankreserve (dauerhaft, bis
+                   manuell entfernt). Wird NIE verrollt und NICHT im
+                   Raid-/Gruppenchat angekündigt, sondern beim Looten
+                   automatisch und lautlos an dich selbst vergeben -
+                   gedacht für Tradeskill-Mats für die Gildenbank,
+                   BoE-Items zum Verkauf/Craften o.ä. Spieler, die es
+                   per Whisper SR'en wollen, werden automatisch
+                   abgewiesen (ihr SR wird dabei NICHT gesetzt).
+/bl br          -> öffnet die Liste aller aktuellen Bankreserve-Items
+                   (mit "Entfernen"-Button je Item)
+/bl br remove [Item] -> entfernt ein Item wieder von der Bankreserve
+/bl lfm         -> öffnet das LFM-Fenster: postet einen frei wählbaren
+                   Text in regelmäßigen Abständen im Weltkanal (z.B.
+                   PUG-Raid-Werbung oder Nachbesetzung eines
+                   abgesprungenen Spielers). Siehe eigener Abschnitt
+                   LFM weiter unten. Alternativ per "LFM"-Button im
+                   SR-Fenster (neben "Raid laden") erreichbar.
+
+Zusätzlich gibt es einen Minimap-Button (am Minimap-Rand, verschiebbar
+per Drag): Linksklick öffnet das Fenster, Rechtsklick die Einstellungen.
+
+In der Titelleiste des SR-Fensters gibt es außerdem zwei kleine Buttons
+"HR" und "BR" (links neben dem "?"-Hilfe-Button), die direkt die
+jeweilige Hard-Reserve- bzw. Bankreserve-Liste öffnen, ohne den Umweg
+über /bl hr bzw. /bl br.
+
+Neben dem "Gesperrt/Offen"-Button (SR-Sperre) sitzt ein kleiner
+"ML/GL"-Button, der die eigentliche WoW-Loot-Methode zwischen Masterloot
+(du selbst) und Gruppenloot umschaltet, ohne den Umweg über das
+Blizzard-Raidoptionen-Menü. Funktioniert nur als Gruppen-/Raidleiter
+(native Einschränkung von SetLootMethod).
+
+SR-LISTE ANSEHEN UND BEARBEITEN
+-----------------------------------
+Jede Item-Zeile im SR- und im Loot-Fenster hat oben rechts einen Button
+"Verwalten". Dort kannst du:
+ - alle Reservierer für dieses Item einsehen (inkl. ihrem SR+ Bonus)
+ - einzelne Spieler mit einem Klick auf "Entfernen" von der SR-Liste
+   streichen (z.B. wenn jemand im Raid nicht performt oder sich nicht
+   an die Regeln hält) - der SR+ Bonus dieses Spielers für das Item
+   bleibt dabei unangetastet, nur die aktuelle Reservierung fällt weg
+ - einen Spieler manuell per Namenseingabe hinzufügen (z.B. wenn er
+   dir die Reservierung nicht per Whisper, sondern z.B. über Discord
+   mitgeteilt hat) - auf exakte Gross-/Kleinschreibung des Namens achten.
+   Ist der Name aktuell nicht im Raid/der Gruppe zu finden, kommt ein
+   Warnhinweis im Chat (Tippfehler-Schutz)
+ - über den Button "Gewinner" einen Spieler direkt und ohne Roll als
+   Gewinner setzen und das Item sofort vergeben (z.B. falls die
+   automatische Roll-Auswertung mal nicht greift)
+ - das ganze Item komplett aus der Liste entfernen
+
+Spieler, die den Raid/die Gruppe verlassen, werden beim nächsten
+Öffnen eines Loot-Fensters automatisch aus offenen Reservierungen
+entfernt (SR+ Werte bleiben erhalten, nur die Reservierung fällt weg).
+Zeigt eine Liste mehr Einträge als ins Fenster passen, wird das unten
+im Fenster angezeigt statt sie kommentarlos abzuschneiden.
+
+CSV-EXPORT FÜR GOOGLE SHEETS
+--------------------------------
+WoW-Addons können nicht direkt mit dem Internet kommunizieren, daher
+gibt es keinen automatischen Upload. Stattdessen:
+ 1. /bl csv (aktuelle SR-Liste) oder /bl csvlog (komplettes Loot-Log,
+    wer hat wann welches Item mit welcher Kategorie bekommen)
+ 2. Im angezeigten Textfeld Strg+A (alles markieren), Strg+C (kopieren)
+ 3. In eine LEERE Zelle in Google Sheets klicken und Strg+V einfügen -
+    Google Sheets teilt den Tab-getrennten Text automatisch in Spalten
+    und Zeilen auf
+Das Loot-Log wird automatisch bei jeder Vergabe (egal ob automatisch
+oder manuell) mitgeschrieben und bleibt bestehen, bis du /bl clearlog
+ausführst - so kannst du auch mehrere Raids gesammelt exportieren.
+
+LOOT-VORSCHAU IM RAID-/GRUPPENCHAT
+--------------------------------------
+Ist die Option "Loot-Vorschau im Raid-/Gruppenchat" aktiv (/bl options,
+Standard: an), postet BananaLoot beim Öffnen eines NEUEN Loot-Fensters
+einmalig eine Item-für-Item-Übersicht im Raid-/Gruppenchat, BEVOR
+irgendein Roll gestartet wird - so wissen alle Spieler vorab, wie jedes
+Item vergeben wird:
+
+  [Item1] [SR]: Bareg(+10), Nareg(+60), Toreg
+  [Item2] [Offen]
+  [Item3] [HR]
+
+ - [SR]: Item ist reserviert, gefolgt von den Reservierern (inkl. ihrem
+   aktuellen SR+ Bonus in Klammern, falls vorhanden)
+ - [Offen]: niemand hat reserviert, frei für den kompletten Raid/die
+   Gruppe
+ - [HR]: Hard Reserve, wird nicht verrollt, sondern nur manuell im
+   "Verwalten"-Fenster vergeben
+ - Bankreserve-Items (BR) tauchen hier NIE auf - sie werden per
+   Definition lautlos vergeben, ganz ohne jede Ankündigung
+ - Bei sehr vielen Reservierern auf ein Item wird die Liste mit
+   "+N weitere" gekürzt (Chat-Zeilenlimit)
+ - Wird dasselbe Loot-Fenster (z.B. derselbe Boss-Kadaver) ein zweites
+   Mal geöffnet, ohne dass sich der Item-Inhalt geändert hat, wird
+   weder die Vorschau noch die "Loot erkannt"-Chatzeile/der Sound
+   erneut ausgelöst
+
+ROLL-SYNC (CLIENT-POPUP FÜR ALLE BANANALOOT-NUTZER)
+-------------------------------------------------------
+Ist die Option "Roll-Sync mit anderen BananaLoot-Nutzern" aktiv
+(/bl options, Standard: AUS), sendet der Loot-Master den Roll-
+Fortschritt per Addon-Nachricht an alle Raid-/Gruppenmitglieder, die
+ebenfalls BananaLoot nutzen UND die Option ebenfalls aktiviert haben.
+Diese sehen dann ein eigenes, verschiebbares Popup-Fenster mit:
+ - Item-Icon und -Name
+ - Modus (SR / Offen / ARF)
+ - Live-Countdown
+ - laufender Bestenliste der eingegangenen Würfe (sortiert nach
+   Kategorie-Priorität -- Hauptspec schlägt Off-Spec schlägt Transmog,
+   exakt wie bei der tatsächlichen Auswertung -- dann nach Wurf-Wert)
+ - drei Buttons (MS/OS/TM) zum direkten Würfeln aus dem Fenster heraus
+   (technisch identisch zu /roll, /roll 1 99, /roll 1 98 von Hand)
+Bei Gleichstand setzt sich die Liste zurück und der Countdown startet
+neu; bei einem Gewinner wird das Ergebnis hervorgehoben und das
+Fenster schließt sich nach wenigen Sekunden automatisch; bei einem
+Abbruch schließt es sich sofort.
+
+Der Loot-Master selbst sieht sein eigenes Popup standardmäßig NICHT
+(er hat sein Loot-Fenster ja schon) -- lässt sich aber über die
+zusätzliche Option "Popup auch beim Senden (als Loot-Master) anzeigen"
+einschalten.
+
+Bewusst NICHT mitgesendet werden die Liste der SR-berechtigten Spieler
+(die filtert weiterhin ausschließlich der Loot-Master lokal -- ein
+Klick auf MS/OS/TM durch einen nicht berechtigten Spieler zählt
+genauso wenig wie ein manueller /roll von jemandem, der nicht auf der
+SR-Liste steht) sowie Item-Name/-Icon (wird bei jedem Empfänger lokal
+aus der Item-ID aufgelöst).
+
+Zusätzlich gibt es bei aktiviertem Roll-Sync eine geteilte Loot-
+Historie (/bl history): eine einfache Liste (Zeit, Item, Gewinner,
+Kategorie) aller Vergaben dieser Session, sichtbar für den Loot-
+Master selbst UND alle Empfänger. Deckt jeden Vergabeweg ab (Roll,
+manuelle Vergabe im Verwalten-Fenster, Raid Roll) -- außer
+Bankreserve, die bleibt wie gewohnt komplett lautlos und taucht dort
+NICHT auf. Die Historie wird nicht gespeichert (nur für die aktuelle
+Session) -- der Loot-Master hat mit /bl csvlog weiterhin sein eigenes,
+dauerhaftes Loot-Log.
+
+LFM (SUCHE MITSPIELER IM WELTKANAL)
+----------------------------------------
+Über /bl lfm bzw. den "LFM"-Button im SR-Fenster (neben "Raid laden")
+öffnet sich ein eigenes kleines Fenster, mit dem sich ein frei wählbarer
+Text in regelmäßigen Abständen automatisch im Weltkanal (üblicherweise
+/4) posten lässt -- gedacht z.B. für PUG-Raid-Werbung oder um schnell
+Nachschub für einen abgesprungenen Spieler zu finden.
+
+ - Text: einzeilige Eingabe, hart auf 255 Zeichen begrenzt (die
+   maximale Länge einer einzelnen Chat-Nachricht), mit Live-Zähler
+   "x / 255" unter dem Eingabefeld.
+ - Abstand: in Minuten einstellbar, mindestens 1 Minute (serverseitiger
+   Chat-Spam-Schutz -- kürzere Intervalle riskieren eine Kanal-Sperre).
+ - Ein einzelner Button wechselt je nach Zustand zwischen "Starten" und
+   "Stoppen" (Beschriftung UND Funktion). Beim Start wird sofort einmal
+   gepostet, danach im eingestellten Intervall.
+ - Status im Fenster: "Aktiv -- nächster Post in Xs" bzw. "Gestoppt".
+ - Text UND Intervall werden lokal gespeichert und bleiben bestehen,
+   bis du sie hier aktiv ersetzt -- auch über /reload und Neustart des
+   Clients hinweg. Das Posten selbst (ob gerade aktiv oder gestoppt)
+   wird dagegen NIE automatisch wieder gestartet, auch nicht nach einem
+   Reload -- das geschieht ausschließlich über einen Klick auf
+   "Starten".
+ - Welcher Kanal-Index "Weltkanal" entspricht (meist, aber nicht
+   zwingend immer /4), wird bei JEDEM Post frisch anhand des Kanal-
+   namens ermittelt, statt fest auf 4 verdrahtet zu sein -- der Index
+   kann sich durch Zonenwechsel oder Relog verschieben. Ist aktuell gar
+   kein Kanal mit "World" im Namen gejoint, wird der jeweilige Post
+   übersprungen und einmalig eine lokale Warnung ausgegeben; der Timer
+   läuft dabei normal weiter und versucht es beim nächsten Intervall
+   erneut.
+
+OFFSPEC- UND TRANSMOG-ROLLS
+------------------------------
+Spieler können statt des normalen /roll (Hauptspec, 1-100) auch
+"/roll 1 99" (Off-Spec) oder "/roll 1 98" (Transmog) würfeln. Das
+Addon wertet automatisch nach Priorität aus: gibt es Hauptspec-Rolls,
+gewinnt der beste davon (inkl. SR+ Bonus); gibt es keine, zählen
+Off-Spec-Rolls; erst wenn auch die fehlen, zählen Transmog-Rolls.
+Off-Spec/Transmog sind NICHT auf die SR-Liste beschränkt - jeder darf
+so rollen, auch wenn er das Item nicht reserviert hat.
+
+SR-LISTE MIT DER VERTRETUNG TEILEN
+-------------------------------------
+Bist du mal nicht da, kann eine Vertretung mit demselben Addon deine
+aktuelle SR-Liste übernehmen:
+ 1. Du tippst /bl export, kopierst den angezeigten Text (Strg+C)
+    und schickst ihn (z.B. per Whisper, Discord) an deine Vertretung.
+ 2. Die Vertretung tippt /bl import, fügt den Text ein (Strg+V) und
+    klickt "Importieren".
+Der Export enthält auch die aktuellen SR+ Werte der gelisteten
+Spieler/Items sowie die komplette Hard-Reserve-Liste, damit die
+Vertretung sofort korrekt rechnet und keine HR-Items übersieht.
+
+HINWEIS: Das Export-Format wurde auf MSRv2 aktualisiert (enthält nun
+auch Hard-Reserve-Items). Exporte aus älteren Addon-Versionen (MSRv1)
+können nicht mehr importiert werden - bitte in dem Fall neu
+exportieren.
+
+RAID LOKAL SPEICHERN/LADEN
+------------------------------
+Zusätzlich zu Export/Import (für die Vertretung, siehe oben) lässt
+sich der aktuelle SR-Stand auch rein lokal unter einem selbst
+gewählten Namen sichern und später wieder laden - z.B. um mehrere
+Raidabende sauber getrennt aufzubewahren oder versehentliche
+Änderungen rückgängig zu machen.
+
+ - "Raid speichern" (Button im SR-Fenster): Namen eingeben und
+   speichern. Existiert der Name bereits, wirst du gefragt, ob der
+   alte Stand überschrieben werden soll.
+ - "Raid laden" (Button im SR-Fenster): öffnet eine Liste aller
+   gespeicherten Raids (mit Zeitpunkt der letzten Speicherung) zum
+   Laden oder endgültigen Löschen.
+ - Ein gespeicherter/geladener Raid-Name wird als Überschrift im
+   SR-Fenster angezeigt (unterhalb von "BananaLoot - SoftReserve /
+   SR+"), damit du auf einen Blick siehst, in welchem Raid du dich
+   gerade befindest.
+ - Gespeichert werden: aktuelle Reservierungen, SR+ Werte aller
+   Spieler und die SR+-Wiederherstellungsliste. Hard-Reserve- und
+   Bankreserve-Listen sind bewusst NICHT Teil eines Snapshots, da sie
+   eher dauerhafte, raid-übergreifende Einstellungen sind und
+   unabhängig davon bestehen bleiben.
+ - Export/Import (mit Zeitstempel, für Google Sheets bzw. die
+   Vertretung) funktionieren weiterhin unverändert und unabhängig
+   von dieser lokalen Speicherfunktion.
+
+ITEM-NAMEN BEIM RAIDRES.TOP-IMPORT (STATISCHE ITEM-DATENBANK)
+-------------------------------------------------------------
+Auf diesem Server-Client liefert die Blizzard-eigene Funktion
+GetItemInfo() für Items, die der Client noch nie "gesehen" hat (nicht
+gelootet, nicht im Inventar, nicht per Shift-Klick angeklickt), keine
+Daten - auch nicht nach mehreren Versuchen. Ein reiner raidres.top-
+Import (der selbst keine Namen mitliefert, nur Item-ID + Qualität)
+zeigt betroffene Items deshalb normalerweise nur als "Item #12345" an,
+bis sie tatsächlich im Raid droppen.
+
+Um das zu umgehen, liegt dem Addon eine mitgelieferte, statische
+Item-Datenbank bei (BananaLootItemDB.lua, ca. 3600 Einträge, generiert
+aus der OctoWoW-eigenen AtlasLoot-Fork sowie einer generischen
+Vanilla-Item-Liste als Ergänzung). Ist eine importierte Item-ID darin
+bekannt, zeigt BananaLoot sofort den echten Namen (korrekt eingefärbt
+nach Qualität) an - ganz ohne GetItemInfo() und ohne auf den echten
+Loot warten zu müssen.
+
+Ist eine ID NICHT in der Datenbank enthalten (z.B. ein ganz neues
+Custom-Item), greift wie bisher der Platzhalter "Item #ID", der sich
+automatisch auf den echten Namen aktualisiert, sobald das Item real
+gelootet wird. Es geht also nichts kaputt, wenn die Datenbank mal
+veraltet ist - man verliert nur den Vorab-Namen für die betroffenen
+Items.
+
+Die Datenbank lässt sich bei Bedarf aktualisieren (z.B. nach einem
+Content-Patch mit neuen Raids/Items): aktuelle Instances.lua von
+https://octowow.st/git/shaga/AtlasLoot/src/branch/main/Database/Instances.lua
+besorgen und die Datei BananaLootItemDB.lua neu generieren (siehe
+Kommentar am Dateianfang für Details zum Format).
+
+EINSTELLUNGEN (/bl options)
+-------------------------------
+Das Optionsfenster ist in fünf Reiter unterteilt, damit keiner davon
+überladen wirkt:
+
+ - Allgemein: SR+ Bonus pro Stufe (Standard: +10 pro Stack), Roll-
+   Timeout in Sekunden (Standard: 60, gilt für alle neu gestarteten
+   Rolls inkl. /bl auto und ARF), maximale Anzahl SR pro Spieler,
+   Rückantwort bei unbekanntem Whisper-Befehl an/aus.
+ - Automatik: automatisches Master Loot beim Anvisieren eines
+   bekannten Raid-Bosses, Mehrfachdrops ("Top N gewinnen"), Loot-
+   Vorschau im Raid-/Gruppenchat an/aus (Standard: an -- postet beim
+   Öffnen eines NEUEN Loot-Fensters einmalig eine Item-für-Item-
+   Übersicht, BEVOR gerollt wird, siehe eigener Abschnitt weiter
+   unten), Chat-Countdown an/aus (sagt bei 10, 5, 3, 2, 1
+   verbleibenden Sekunden im Raid-/Gruppenchat an, wie viel Zeit noch
+   bleibt).
+ - Netzwerk: Roll-Sync mit anderen BananaLoot-Nutzern (inkl.
+   Unteroption "Popup auch beim Senden anzeigen"), Trade-Tracking.
+ - Anzeige & Sound: Sprache (Deutsch/Englisch), SR-Fenster- und Loot-
+   Fenster-Skalierung getrennt einstellbar (je 50-150%, Standard:
+   100% -- z.B. praktisch, um nur das kompaktere Loot-Fenster auf
+   kleinen Bildschirmen zu verkleinern, ohne das SR-Fenster mit
+   anzufassen), einzelne Sound-Schalter je Event plus Hauptschalter.
+ - Verwaltung: Neuer Raid, SR+ komplett leeren, CSV-Exporte, Log
+   leeren, SR+-Wiederherstellung.
+
+Das Fenster passt seine Höhe automatisch an den jeweils angezeigten
+Reiter an, damit ein kurzer Reiter (z.B. "Netzwerk") nicht denselben
+Leerraum zeigt wie ein längerer. Alle Werte werden lokal gespeichert
+und gelten für Anzeige, Whisper-Antworten und die automatische Roll-
+Auswertung gleichermaßen.
+
+AUTOMATISCHE ROLL-AUSWERTUNG (wie RollFor)
+--------------------------------------------
+ - Sobald du im Fenster "Roll starten" klickst oder /bl auto läuft,
+   hört das Addon automatisch auf System-Chat-Rolls.
+ - Ist das Item SR't, zählen NUR die Rolls der SR-Spieler
+   (inkl. ihrem SR+ Bonus). Ist es NICHT SR't, darf die ganze
+   Gruppe/der Raid rollen.
+ - Mehrfach-Rolls eines Spielers werden ignoriert (nur der erste zählt).
+ - Sobald ALLE berechtigten Spieler gerollt haben, wird sofort
+   automatisch ausgewertet – kein Warten auf einen Timer nötig.
+ - Bei Gleichstand: nur die betroffenen Spieler müssen erneut rollen,
+   der Rest ist bereits fertig. Das wird automatisch im Chat angesagt.
+ - Ein 60-Sekunden-Fallback wertet trotzdem aus, falls jemand offline
+   geht oder nicht rollt.
+
+BEDIENUNG (Spieler)
+--------------------
+Item per Shift-Klick in ein Whisper-Fenster an den Masterlooter ziehen,
+davor "sr " bzw. "unsr " schreiben:
+
+   sr [Aeonaxx-Klaue]
+   unsr [Aeonaxx-Klaue]
+   srlist          -> listet eigene Reservierungen + Bonus per Whisper,
+                      inkl. wer sonst noch mit wie viel SR+ auf
+                      dasselbe Item reserviert hat
+   hr / hrlist     -> listet alle aktuellen Hard-Reserve-Items per Whisper
+
+WICHTIG: Pro Raid ist nur 1 SR aktiv. Reserviert ein Spieler ein
+NEUES Item, wird die alte Reservierung automatisch entfernt UND
+der dort aufgebaute SR+ Bonus gelöscht. Der Spieler wird per
+Whisper darauf hingewiesen.
+
+UNTERSCHIEDE ZU ROLLFOR (bewusste Entscheidungen)
+----------------------------------------------------
+ - Vergabe erfolgt über eine eigene automatische Kandidaten-Suche
+   (GiveMasterLoot/GetMasterLootCandidate) statt über das native
+   Blizzard-Dropdown im Loot-Fenster.
+   WICHTIG (ab v3.30): GiveMasterLoot funktioniert in Vanilla nur,
+   solange das Kadaver-Fenster wirklich offen ist. Geht es zwischen
+   Roll-Start und Vergabe zu (Bewegung, ESC, zu weit weg), merkt
+   BananaLoot die Vergabe vor und holt sie automatisch nach, sobald
+   du denselben Kadaver erneut anklickst. Das native Dropdown zu hooken
+   wäre optisch näher an RollFor, ist aber ohne Test an einem echten
+   Client riskant (falscher Frame-Name könnte das Loot-Fenster
+   zerschießen). Schlägt die automatische Zuweisung fehl, zeigt das
+   Addon den Gewinner klar an, damit du manuell vergibst.
+
+DATENSPEICHERUNG
+------------------
+SR+ Werte liegen lokal unter
+World of Warcraft/WTF/Account/<ACCOUNT>/SavedVariables/BananaLoot.lua
+(Variable BananaLoot_DB) und überleben Relogs/Patches.
+
+ANPASSUNGEN
+------------
+- Bonus pro Stack: jetzt bequem über /bl options einstellbar
+  (Standard 10), keine Code-Änderung mehr nötig.
+- Timeout-Fallback: jetzt bequem über /bl options einstellbar
+  (Standard 60s), keine Code-Änderung mehr nötig.
+- Whisper-Befehle: Funktion HandleWhisper in BananaLoot.lua.
+- Grafiken liegen im Unterordner "Icons" des Addon-Ordners. Es gibt zwei:
+  * BananaLoot_Logo_256.tga (256x256) -- das komplette Logo, wird im
+    Options-Fenster oben angezeigt (optLogo:SetTexture in
+    BananaLootExtra.lua).
+  * BananaLoot_Icon_64.tga (64x64) -- nur der Kisten-Ausschnitt des Logos,
+    ohne Schriftzug, weil der bei 18-32 px nicht mehr lesbar waere. Wird
+    fuer den Minimap-Button (BananaLootExtra.lua, mmIcon) sowie die
+    Titelzeilen von SR- und Loot-Fenster (BananaLootUI.lua, srTitleIcon /
+    lootTitleIcon) verwendet.
+  Beide Grafiken sind quadratisch (1:1) und werden im Code ausschliesslich
+  mit quadratischen Massen angezeigt -- also SetWidth == SetHeight und KEIN
+  SetTexCoord. Wer sie austauscht, sollte das beibehalten, sonst wird das
+  Bild gestaucht.
+  WoW verlangt bei eigenen TGA-UI-Texturen Zweierpotenz-Dimensionen
+  (16/32/64/128/256/512/...), sonst wird die Datei gar nicht geladen.
+  Format: unkomprimiertes 32-Bit-TGA (BGRA, bottom-up) mit Alphakanal.
