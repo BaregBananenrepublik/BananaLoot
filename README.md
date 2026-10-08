@@ -408,6 +408,8 @@ If you enjoy BananaLoot and want to support its development:
 
 [☕ Buy me a Coffee](https://www.buymeacoffee.com/bareg)
 
+or you can send me an in-gane Mail with a donate to [N'Zoth] Bareg. Thank you for your Support! 
+
 ---
 ## License
 
