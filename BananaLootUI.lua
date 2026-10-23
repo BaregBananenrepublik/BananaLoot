@@ -1064,7 +1064,7 @@ end
 -- BananaLoot.lua, das hier über BananaLoot_UI:HandleRollSync andockt).
 -- Zeigt Item/Modus/Countdown/laufende Rolls live an und erlaubt per
 -- MS/OS/TM-Button, direkt daraus zu würfeln (RandomRoll -- derselbe
--- Effekt wie /roll bzw. /roll 1 99/98 von Hand einzutippen; kennt wie
+-- Effekt wie /roll bzw. /roll 99 und /roll 98 von Hand einzutippen; kennt wie
 -- ein manueller /roll keine SR-Berechtigung, das prüft weiterhin
 -- ausschließlich der Loot-Master lokal).
 -- ============================================================

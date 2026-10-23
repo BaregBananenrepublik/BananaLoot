@@ -87,8 +87,8 @@ BananaLoot never talks to the internet on its own.
 
 ### Automatic roll evaluation
 
-- Detects Main Spec (`/roll`), Off-Spec (`/roll 1 99`), and Transmog
-  (`/roll 1 98`) rolls automatically via system chat
+- Detects Main Spec (`/roll`), Off-Spec (`/roll 99`), and Transmog
+  (`/roll 98`) rolls automatically via system chat
 - Priority: Main Spec > Off-Spec > Transmog
 - If an item is soft-reserved, only the reservers may roll Main Spec –
   Off-Spec/Transmog stays open to everyone
@@ -240,8 +240,8 @@ BananaLoot never talks to the internet on its own.
 - Double-post protection: only the raid leader sends – or, if a name is
   entered in the sender field, only that player. Each boss is announced once
   per raid, and other BananaLoot clients are informed so they stay silent
-- Default texts ship for raids with custom content and for AQ20/AQ40;
-  everything is editable
+- Default texts ship for every boss (including the optional UBRS raid);
+  everything is editable and your own texts always take priority
 
 ### Two dedicated windows
 

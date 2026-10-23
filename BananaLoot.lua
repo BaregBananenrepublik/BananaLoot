@@ -5,7 +5,7 @@
 -- Vanilla 1.12 kompatibel (Lua 5.0 -> KEIN "#" Operator, KEIN string.gmatch!)
 
 BananaLoot = {}
-BananaLoot.VERSION = "3.35"
+BananaLoot.VERSION = "3.37"
 BananaLoot.DB_VERSION = 1 -- bei künftigen Strukturänderungen an BananaLoot_DB erhöhen und Migration in MigrateDB() ergänzen
 
 -- ============================================================
@@ -69,7 +69,7 @@ local LOCALE = {
         WHISPER_SR_BANK_RESERVE = "BananaLoot: %s ist Bankreserve und wird automatisch vergeben. Bitte setze dein SR auf ein anderes Item.",
 
         -- Roll-Ansagen
-        ROLL_HOWTO = "/roll = Hauptspec, /roll 1 99 = Off-Spec, /roll 1 98 = Transmog",
+        ROLL_HOWTO = "/roll = Hauptspec, /roll 99 = Off-Spec, /roll 98 = Transmog",
         ROLL_ANNOUNCE_SR = "[BananaLoot] SR-Roll für %s -- %s-- %s",
         ROLL_ANNOUNCE_ARF = "[BananaLoot] ARF: Roll für %s -- SR ausgesetzt, offen für alle -- %s",
         ROLL_ANNOUNCE_OPEN = "[BananaLoot] Roll für %s -- offen für alle -- %s",
@@ -176,8 +176,8 @@ local LOCALE = {
             "\n" ..
             "=== ROLL-KATEGORIEN ===\n" ..
             "/roll                  Hauptspec (1-100)\n" ..
-            "/roll 1 99             Off-Spec\n" ..
-            "/roll 1 98             Transmog",
+            "/roll 99               Off-Spec\n" ..
+            "/roll 98               Transmog",
 
         CMD_HELP = "|cff33ff99BananaLoot|r Befehle: /bl, /bl loot, /bl auto, /bl award, /bl arf [Item], /bl sr [Item], /bl unsr [Item], /bl stop, /bl reset, /bl wipeplus, /bl export, /bl import, /bl csv, /bl csvlog, /bl clearlog, /bl options, /bl hr [Item], /bl hr remove [Item], /bl br [Item], /bl br remove [Item], /bl lfm",
 
@@ -595,7 +595,7 @@ local LOCALE = {
         UI_BTN_STOP_TOOLTIP = "Immediately cancels auto mode AND an active roll (same as /bl stop).",
         WHISPER_SR_BANK_RESERVE = "BananaLoot: %s is Bank Reserve and will be awarded automatically. Please SR a different item.",
 
-        ROLL_HOWTO = "/roll = Main Spec, /roll 1 99 = Off-Spec, /roll 1 98 = Transmog",
+        ROLL_HOWTO = "/roll = Main Spec, /roll 99 = Off-Spec, /roll 98 = Transmog",
         ROLL_ANNOUNCE_SR = "[BananaLoot] SR roll for %s -- %s-- %s",
         ROLL_ANNOUNCE_ARF = "[BananaLoot] ARF: Roll for %s -- SR suspended, open to everyone -- %s",
         ROLL_ANNOUNCE_OPEN = "[BananaLoot] Roll for %s -- open to everyone -- %s",
@@ -698,8 +698,8 @@ local LOCALE = {
             "\n" ..
             "=== ROLL CATEGORIES ===\n" ..
             "/roll                  Main Spec (1-100)\n" ..
-            "/roll 1 99             Off-Spec\n" ..
-            "/roll 1 98             Transmog",
+            "/roll 99               Off-Spec\n" ..
+            "/roll 98               Transmog",
 
         CMD_HELP = "|cff33ff99BananaLoot|r Commands: /bl, /bl loot, /bl auto, /bl award, /bl arf [Item], /bl sr [Item], /bl unsr [Item], /bl stop, /bl reset, /bl wipeplus, /bl export, /bl import, /bl csv, /bl csvlog, /bl clearlog, /bl options, /bl hr [Item], /bl hr remove [Item], /bl br [Item], /bl br remove [Item], /bl lfm",
 
