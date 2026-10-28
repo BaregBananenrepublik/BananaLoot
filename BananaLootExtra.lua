@@ -498,6 +498,16 @@ optClearLogBtn:SetScript("OnClick", function()
     DEFAULT_CHAT_FRAME:AddMessage(BananaLoot:L("CMD_LOG_CLEARED"))
 end)
 
+local optAliasBtn = CreateFrame("Button", "BananaLootOptAliasBtn", optFrame, "UIPanelButtonTemplate")
+optAliasBtn:SetWidth(140)
+optAliasBtn:SetHeight(20)
+optAliasBtn:SetPoint("LEFT", optClearLogBtn, "RIGHT", 6, 0)
+RegisterLocaleText(optAliasBtn, "UI_BTN_ALIAS_MANAGE")
+optAliasBtn:SetScript("OnClick", function()
+    BananaLoot:PlayClickSound()
+    if BananaLoot_UI and BananaLoot_UI.ShowAliasManager then BananaLoot_UI:ShowAliasManager() end
+end)
+
 -- ============================================================
 -- 1b) ANZEIGE: getrennte Skalierung für SR-Fenster und Loot-Fenster
 -- (z.B. für kleine Displays) -- zwei unabhängige Werte, da beide
@@ -1015,7 +1025,11 @@ importRaidResBtn:SetScript("OnClick", function()
             DEFAULT_CHAT_FRAME:AddMessage(string.format(BananaLoot:L("IMPORT_DROPPED_WARNING"), result.droppedCount, BananaLoot:GetMaxSRCount()))
         end
         if table.getn(result.unmatchedNames) > 0 then
-            DEFAULT_CHAT_FRAME:AddMessage(string.format(BananaLoot:L("IMPORT_RAIDRES_UNMATCHED_WARNING"), table.concat(result.unmatchedNames, ", ")))
+            if BananaLoot:IsSolo() then
+                DEFAULT_CHAT_FRAME:AddMessage(BananaLoot:L("IMPORT_RAIDRES_SOLO_HINT"))
+            else
+                DEFAULT_CHAT_FRAME:AddMessage(string.format(BananaLoot:L("IMPORT_RAIDRES_UNMATCHED_WARNING"), table.concat(result.unmatchedNames, ", ")))
+            end
         end
         if table.getn(result.hrSkipped) > 0 then
             DEFAULT_CHAT_FRAME:AddMessage(string.format(BananaLoot:L("IMPORT_RAIDRES_HR_SKIPPED_WARNING"), table.getn(result.hrSkipped), table.concat(result.hrSkipped, ", ")))

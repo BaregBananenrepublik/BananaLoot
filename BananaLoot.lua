@@ -5,7 +5,7 @@
 -- Vanilla 1.12 kompatibel (Lua 5.0 -> KEIN "#" Operator, KEIN string.gmatch!)
 
 BananaLoot = {}
-BananaLoot.VERSION = "3.37"
+BananaLoot.VERSION = "3.39"
 BananaLoot.DB_VERSION = 1 -- bei künftigen Strukturänderungen an BananaLoot_DB erhöhen und Migration in MigrateDB() ergänzen
 
 -- ============================================================
@@ -70,6 +70,7 @@ local LOCALE = {
 
         -- Roll-Ansagen
         ROLL_HOWTO = "/roll = Hauptspec, /roll 99 = Off-Spec, /roll 98 = Transmog",
+        ROLL_TIME_SUFFIX = " -- Zeit: %d Sek.",
         ROLL_ANNOUNCE_SR = "[BananaLoot] SR-Roll für %s -- %s-- %s",
         ROLL_ANNOUNCE_ARF = "[BananaLoot] ARF: Roll für %s -- SR ausgesetzt, offen für alle -- %s",
         ROLL_ANNOUNCE_OPEN = "[BananaLoot] Roll für %s -- offen für alle -- %s",
@@ -215,6 +216,20 @@ local LOCALE = {
         ALIAS_EMPTY = "|cff888888(alle Namen zugeordnet)|r",
         ALIAS_OVERFLOW = "+%d weitere nicht angezeigt",
         ALIAS_PICK_TITLE = "Raider für %s wählen",
+        ALIAS_REMOVED_NOTRACK = "|cffffcc00BananaLoot|r: Diese ältere Zuordnung hatte keine Aufzeichnung - bereits übertragene Reservierungen bleiben beim Ziel. Ein erneuter raidres.top-Import stellt sie wieder her.",
+        ALIAS_REVERTED = "|cff33ff99BananaLoot|r: %d Reservierung(en) zurück auf %s übertragen.",
+        WIN_ALIASMGR_TITLE = "Gespeicherte Zuordnungen",
+        WIN_ALIASMGR_HINT = "Importname -> Ingame-Name. Mit Entfernen wird die Zuordnung gelöscht und die übertragenen Reservierungen gehen zurück an den Importnamen.",
+        ALIASMGR_BTN_REMOVE = "Entfernen",
+        ALIASMGR_BTN_OPEN = "Zuordnungen verwalten",
+        ALIASMGR_SELF_WARN = " |cffff8800(du selbst!)|r",
+        UI_BTN_ALIAS_MANAGE = "Namens-Zuordnungen",
+        WIN_ALIAS_SOLO_HINT = "Du bist in keiner Gruppe. Prüfe die Namen: passt der Name, auf OK klicken; sonst den richtigen Namen eintragen und OK klicken (wird für künftige Importe gespeichert).",
+        ALIAS_SOLO_OK = "OK",
+        ALIAS_SOLO_DONE = "|cff33ff99OK|r",
+        IMPORT_RAIDRES_SOLO_HINT = "|cffffcc00BananaLoot|r: Du bist in keiner Gruppe - bitte die importierten Namen im folgenden Fenster prüfen.",
+        ALIAS_SELF_POPUP = "Wirklich %s dir selbst (%s) zuordnen?\nDeine eigenen Reservierungen werden mit denen dieses Namens vermischt.",
+        ALIAS_SELF_YES = "Ja, zuordnen",
         RAID_BTN_START = "Raid starten",
         RAID_BTN_STOP = "Raid beenden",
         RAID_BTN_START_TOOLTIP = "Startet den Raid: erfasst alle aktuellen Raid-Mitglieder als Teilnehmer (später Eingeladene kommen automatisch dazu) und startet die Zeitmessung.",
@@ -596,6 +611,7 @@ local LOCALE = {
         WHISPER_SR_BANK_RESERVE = "BananaLoot: %s is Bank Reserve and will be awarded automatically. Please SR a different item.",
 
         ROLL_HOWTO = "/roll = Main Spec, /roll 99 = Off-Spec, /roll 98 = Transmog",
+        ROLL_TIME_SUFFIX = " -- Time: %d sec.",
         ROLL_ANNOUNCE_SR = "[BananaLoot] SR roll for %s -- %s-- %s",
         ROLL_ANNOUNCE_ARF = "[BananaLoot] ARF: Roll for %s -- SR suspended, open to everyone -- %s",
         ROLL_ANNOUNCE_OPEN = "[BananaLoot] Roll for %s -- open to everyone -- %s",
@@ -736,6 +752,20 @@ local LOCALE = {
         ALIAS_EMPTY = "|cff888888(all names matched)|r",
         ALIAS_OVERFLOW = "+%d more not shown",
         ALIAS_PICK_TITLE = "Choose raider for %s",
+        ALIAS_REMOVED_NOTRACK = "|cffffcc00BananaLoot|r: this older mapping had no record - already transferred reservations stay with the target. Re-importing from raidres.top restores them.",
+        ALIAS_REVERTED = "|cff33ff99BananaLoot|r: %d reservation(s) moved back to %s.",
+        WIN_ALIASMGR_TITLE = "Saved name mappings",
+        WIN_ALIASMGR_HINT = "Import name -> ingame name. Remove deletes the mapping and moves the transferred reservations back to the import name.",
+        ALIASMGR_BTN_REMOVE = "Remove",
+        ALIASMGR_BTN_OPEN = "Manage mappings",
+        ALIASMGR_SELF_WARN = " |cffff8800(yourself!)|r",
+        UI_BTN_ALIAS_MANAGE = "Name mappings",
+        WIN_ALIAS_SOLO_HINT = "You are not in a group. Check the names: if a name is right click OK; otherwise type the correct name and click OK (saved for future imports).",
+        ALIAS_SOLO_OK = "OK",
+        ALIAS_SOLO_DONE = "|cff33ff99OK|r",
+        IMPORT_RAIDRES_SOLO_HINT = "|cffffcc00BananaLoot|r: you are not in a group - please check the imported names in the following window.",
+        ALIAS_SELF_POPUP = "Really match %s to yourself (%s)?\nYour own reservations will be merged with those of this name.",
+        ALIAS_SELF_YES = "Yes, match",
         RAID_BTN_START = "Start Raid",
         RAID_BTN_STOP = "End Raid",
         RAID_BTN_START_TOOLTIP = "Starts the raid: records all current raid members as attendees (players invited later are added automatically) and starts the timer.",
@@ -2601,7 +2631,10 @@ function BananaLoot:StartRoll(itemID, maxDuration, forceOpen, providedLink)
     BroadcastRollStart(itemID, self.activeRoll.maxDuration, syncMode)
 
     local channel = self:GetAnnounceChannel()
-    local howTo = self:L("ROLL_HOWTO")
+    -- Gesamtzeit des Rolls direkt im Startspruch, damit alle von Anfang an
+    -- wissen, wie lange sie wuerfeln koennen (je nach Timeout-Einstellung).
+    local howTo = self:L("ROLL_HOWTO") ..
+        string.format(self:L("ROLL_TIME_SUFFIX"), math.floor(self.activeRoll.maxDuration + 0.5))
     -- Zusaetzlicher Hinweis im Ankuendigungstext, wenn mehrere Kopien in
     -- diesem einen Roll vergeben werden -- der reine Item-Link (ar.link)
     -- bleibt dabei unveraendert, damit Tooltip/Sync/spaetere Vergabe
@@ -3918,22 +3951,118 @@ function BananaLoot:RenamePlayer(oldName, newName)
 end
 
 -- Speichert die Zuordnung und uebertraegt bereits vorhandene Reservierungen.
+-- Merkt sich dabei, welche Items/SR+ Werte tatsaechlich uebertragen wurden
+-- (entry.moved / entry.plus), damit RemoveAlias sie sauber zurueckgeben kann.
 function BananaLoot:SetAlias(importName, targetName)
     if not importName or importName == "" or not targetName or targetName == "" then return false end
     if importName == targetName then return false end
     EnsureDB()
-    BananaLoot_DB.aliases[string.lower(importName)] = { name = importName, target = targetName }
+    local key = string.lower(importName)
+    if BananaLoot_DB.aliases[key] then
+        self:RemoveAlias(importName, true)
+    end
+    local moved = {}
+    local movedPlus = {}
+    local oldItems = self.playerReservedItems[importName]
+    local targetItems = self.playerReservedItems[targetName]
+    if oldItems then
+        for i = 1, table.getn(oldItems) do
+            local id = oldItems[i]
+            local has = false
+            if targetItems then
+                for k = 1, table.getn(targetItems) do
+                    if targetItems[k] == id then has = true end
+                end
+            end
+            if not has then table.insert(moved, id) end
+        end
+    end
+    local oldStacks = BananaLoot_DB.players[importName]
+    if oldStacks then
+        local tStacks = BananaLoot_DB.players[targetName]
+        for id, value in pairs(oldStacks) do
+            if not (tStacks and tStacks[id]) then movedPlus[id] = value end
+        end
+    end
+    BananaLoot_DB.aliases[key] = { name = importName, target = targetName, moved = moved, plus = movedPlus }
     self:RenamePlayer(importName, targetName)
     return true
 end
 
-function BananaLoot:RemoveAlias(importName)
+-- Gibt Reservierungen/SR+ Werte, die durch SetAlias uebertragen wurden,
+-- an den Import-Namen zurueck. Rueckgabe: Anzahl zurueckgegebener Items.
+local function RevertAliasData(self, entry)
+    local importName = entry.name
+    local target = entry.target
+    local count = 0
+    if not entry.moved then return 0 end
+    for i = 1, table.getn(entry.moved) do
+        local id = entry.moved[i]
+        local res = self.reservations[id]
+        if res and res.players[target] then
+            res.players[target] = nil
+            for k = 1, table.getn(res.order) do
+                if res.order[k] == target then
+                    res.order[k] = importName
+                    break
+                end
+            end
+            res.players[importName] = true
+            local tItems = self.playerReservedItems[target]
+            if tItems then
+                for k = table.getn(tItems), 1, -1 do
+                    if tItems[k] == id then table.remove(tItems, k) end
+                end
+                if table.getn(tItems) == 0 then self.playerReservedItems[target] = nil end
+            end
+            self.playerReservedItems[importName] = self.playerReservedItems[importName] or {}
+            table.insert(self.playerReservedItems[importName], id)
+            count = count + 1
+        end
+    end
+    if entry.plus then
+        local tStacks = BananaLoot_DB.players[target]
+        for id, value in pairs(entry.plus) do
+            if tStacks and tStacks[id] == value then
+                BananaLoot_DB.players[importName] = BananaLoot_DB.players[importName] or {}
+                BananaLoot_DB.players[importName][id] = value
+                tStacks[id] = nil
+            end
+        end
+    end
+    return count
+end
+
+-- Entfernt die Zuordnung. Mit revert=true werden zusaetzlich die durch sie
+-- uebertragenen Reservierungen/SR+ Werte zurueck auf den Import-Namen gegeben.
+-- Rueckgabe: ok, zurueckgegebene Items, hadTracking (false bei alten Eintraegen
+-- ohne Aufzeichnung: dort bleibt nur der Alias weg, Reservierungen liegen
+-- weiter beim Ziel; ein erneuter Import stellt sie dann wieder her).
+function BananaLoot:RemoveAlias(importName, revert)
     if not importName or importName == "" then return false end
     EnsureDB()
     local key = string.lower(importName)
-    if not BananaLoot_DB.aliases[key] then return false end
+    local entry = BananaLoot_DB.aliases[key]
+    if not entry then return false end
+    local count = 0
+    local hadTracking = entry.moved ~= nil
+    if revert and hadTracking then
+        count = RevertAliasData(self, entry)
+        self:SaveSession()
+    end
     BananaLoot_DB.aliases[key] = nil
-    return true
+    return true, count, hadTracking
+end
+
+-- Alle gespeicherten Zuordnungen als sortiertes Array von { name, target }.
+function BananaLoot:GetAliasList()
+    EnsureDB()
+    local list = {}
+    for _, entry in pairs(BananaLoot_DB.aliases) do
+        table.insert(list, { name = entry.name, target = entry.target })
+    end
+    table.sort(list, function(a, b) return string.lower(a.name) < string.lower(b.name) end)
+    return list
 end
 
 function BananaLoot:PrintAliasList()
@@ -3948,11 +4077,31 @@ function BananaLoot:PrintAliasList()
     end
 end
 
+-- Steht der Spieler in keiner Gruppe/keinem Raid? Dann ist der Roster-Abgleich
+-- sinnlos (nur man selbst), der Import wird stattdessen per Namenspruefung
+-- (Textfelder) vorbereitet.
+function BananaLoot:IsSolo()
+    if BananaLoot.testRoster then return false end
+    return GetNumRaidMembers() == 0 and GetNumPartyMembers() == 0
+end
+
 -- Namen mit Reservierung, die aktuell nicht im Raid/der Gruppe sind.
 function BananaLoot:GetUnmatchedPlayers()
     local result = {}
     for name, items in pairs(self.playerReservedItems) do
         if table.getn(items) > 0 and not self:IsPlayerInRoster(name) then
+            table.insert(result, name)
+        end
+    end
+    table.sort(result)
+    return result
+end
+
+-- Alle Namen mit Reservierung (fuer die Namenspruefung ohne Gruppe).
+function BananaLoot:GetReservedPlayerNames()
+    local result = {}
+    for name, items in pairs(self.playerReservedItems) do
+        if table.getn(items) > 0 then
             table.insert(result, name)
         end
     end
@@ -5587,12 +5736,23 @@ SlashCmdList["BANANALOOT"] = function(msg)
         if BananaLoot_UI and BananaLoot_UI.ShowAliasWindow then BananaLoot_UI:ShowAliasWindow() end
 
     elseif cmd == "alias list" then
-        BananaLoot:PrintAliasList()
+        if BananaLoot_UI and BananaLoot_UI.ShowAliasManager then
+            BananaLoot_UI:ShowAliasManager()
+        else
+            BananaLoot:PrintAliasList()
+        end
 
     elseif string.find(cmd, "^alias del ") then
         local aliasName = Trim(string.sub(msg, 11))
-        if BananaLoot:RemoveAlias(aliasName) then
+        local ok, count, hadTracking = BananaLoot:RemoveAlias(aliasName, true)
+        if ok then
             DEFAULT_CHAT_FRAME:AddMessage(string.format(BananaLoot:L("ALIAS_REMOVED"), aliasName))
+            if not hadTracking then
+                DEFAULT_CHAT_FRAME:AddMessage(BananaLoot:L("ALIAS_REMOVED_NOTRACK"))
+            elseif count > 0 then
+                DEFAULT_CHAT_FRAME:AddMessage(string.format(BananaLoot:L("ALIAS_REVERTED"), count, aliasName))
+            end
+            if BananaLoot_UI and BananaLoot_UI.Refresh then BananaLoot_UI:Refresh() end
         else
             DEFAULT_CHAT_FRAME:AddMessage(BananaLoot:L("ALIAS_REMOVE_FAIL"))
         end
