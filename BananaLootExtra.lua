@@ -1839,6 +1839,125 @@ function BananaLoot_UI:ShowBRList()
 end
 
 -- ============================================================
+-- 2f-2) RAIDROLL-LISTE (Liste + Entfernen-Button je Item). In einem
+-- do-Block, damit keine Top-Level-Locals dazukommen (Locals-Limit).
+-- ============================================================
+do
+    local rlFrame = CreateFrame("Frame", "BananaLootRaidListFrame", UIParent)
+    rlFrame:SetWidth(340)
+    rlFrame:SetHeight(380)
+    rlFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+    rlFrame:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+        tile = true, tileSize = 32, edgeSize = 32,
+        insets = { left = 11, right = 11, top = 11, bottom = 11 },
+    })
+    rlFrame:SetMovable(true)
+    rlFrame:EnableMouse(true)
+    rlFrame:RegisterForDrag("LeftButton")
+    rlFrame:SetScript("OnDragStart", function() rlFrame:StartMoving() end)
+    rlFrame:SetScript("OnDragStop", function() rlFrame:StopMovingOrSizing() end)
+    rlFrame:SetFrameStrata("DIALOG")
+    rlFrame:Hide()
+
+    local rlClose = CreateFrame("Button", "BananaLootRaidListCloseButton", rlFrame, "UIPanelCloseButton")
+    rlClose:SetPoint("TOPRIGHT", rlFrame, "TOPRIGHT", -4, -4)
+    rlClose:SetScript("OnClick", function()
+        BananaLoot:PlayClickSound()
+        rlFrame:Hide()
+    end)
+
+    local rlTitle = rlFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    rlTitle:SetPoint("TOP", rlFrame, "TOP", 0, -16)
+    RegisterLocaleText(rlTitle, "WIN_RAIDLIST_TITLE")
+
+    local rlHint = rlFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    rlHint:SetPoint("TOP", rlFrame, "TOP", 0, -36)
+    rlHint:SetWidth(300)
+    rlHint:SetJustifyH("CENTER")
+    RegisterLocaleText(rlHint, "WIN_RAIDLIST_HINT")
+
+    local rlScroll = CreateFrame("ScrollFrame", "BananaLootRaidListScroll", rlFrame, "UIPanelScrollFrameTemplate")
+    rlScroll:SetPoint("TOPLEFT", rlFrame, "TOPLEFT", 16, -96)
+    rlScroll:SetPoint("BOTTOMRIGHT", rlFrame, "BOTTOMRIGHT", -30, 24)
+
+    local rlChild = CreateFrame("Frame", "BananaLootRaidListScrollChild", rlScroll)
+    rlChild:SetWidth(280)
+    rlChild:SetHeight(1)
+    rlScroll:SetScrollChild(rlChild)
+
+    local RL_ROW_H = 24
+    local RL_MAX = 30
+    local rlRows = {}
+
+    for i = 1, RL_MAX do
+        local r = CreateFrame("Frame", "BananaLootRaidListRow" .. i, rlChild)
+        r:SetWidth(280)
+        r:SetHeight(RL_ROW_H)
+        r:SetPoint("TOPLEFT", rlChild, "TOPLEFT", 0, -(i - 1) * RL_ROW_H)
+        r.linkText = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        r.linkText:SetPoint("LEFT", r, "LEFT", 0, 0)
+        r.linkText:SetWidth(180)
+        r.linkText:SetJustifyH("LEFT")
+        r.removeBtn = CreateFrame("Button", "BananaLootRaidListRow" .. i .. "RemoveBtn", r, "UIPanelButtonTemplate")
+        r.removeBtn:SetWidth(80)
+        r.removeBtn:SetHeight(20)
+        r.removeBtn:SetPoint("RIGHT", r, "RIGHT", 0, 0)
+        r:Hide()
+        rlRows[i] = r
+    end
+
+    local rlOverflow = rlFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    rlOverflow:SetPoint("BOTTOM", rlFrame, "BOTTOM", 0, 6)
+    rlOverflow:SetText("")
+
+    local function RefreshRaidList()
+        local list = BananaLoot:GetRaidRollList()
+        local ids = {}
+        for id, _ in pairs(list) do table.insert(ids, id) end
+        table.sort(ids)
+
+        if table.getn(ids) > RL_MAX then
+            rlOverflow:SetText(string.format(BananaLoot:L("RAIDLIST_OVERFLOW"), table.getn(ids) - RL_MAX))
+        else
+            rlOverflow:SetText("")
+        end
+
+        local shown = 0
+        for i = 1, table.getn(ids) do
+            local id = ids[i]
+            shown = shown + 1
+            if shown > RL_MAX then break end
+            local row = rlRows[shown]
+            row.linkText:SetText(list[id].link)
+            row.removeBtn:SetText(BananaLoot:L("RAIDLIST_REMOVE_BTN"))
+            row.removeBtn:Show()
+            row.removeBtn:SetScript("OnClick", function()
+                BananaLoot:PlayClickSound()
+                BananaLoot:RemoveRaidRollItem(id)
+                RefreshRaidList()
+                if BananaLoot_UI and BananaLoot_UI.Refresh then BananaLoot_UI:Refresh() end
+            end)
+            row:Show()
+        end
+        for i = shown + 1, RL_MAX do rlRows[i]:Hide() end
+        rlChild:SetHeight(math.max(1, shown * RL_ROW_H))
+
+        if shown == 0 then
+            rlRows[1].linkText:SetText(BananaLoot:L("RAIDLIST_EMPTY"))
+            rlRows[1].removeBtn:Hide()
+            rlRows[1]:Show()
+        end
+    end
+
+    function BananaLoot_UI:ShowRaidRollList()
+        RefreshRaidList()
+        rlFrame:Show()
+    end
+end
+
+-- ============================================================
 -- 2e) SR+ WIEDERHERSTELLUNG: zeigt je Spieler die zuletzt durch eine neue
 -- Reservierung verdrängte Reservierung (inkl. SR+ Stack) und erlaubt es,
 -- sie mit einem Klick wiederherzustellen -- z.B. wenn sich ein Spieler

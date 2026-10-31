@@ -5,7 +5,7 @@
 -- Vanilla 1.12 kompatibel (Lua 5.0 -> KEIN "#" Operator, KEIN string.gmatch!)
 
 BananaLoot = {}
-BananaLoot.VERSION = "3.40"
+BananaLoot.VERSION = "3.41"
 BananaLoot.DB_VERSION = 1 -- bei künftigen Strukturänderungen an BananaLoot_DB erhöhen und Migration in MigrateDB() ergänzen
 
 -- ============================================================
@@ -17,6 +17,7 @@ local function EnsureDB()
     if not BananaLoot_DB.settings then BananaLoot_DB.settings = {} end
     if not BananaLoot_DB.hardReserves then BananaLoot_DB.hardReserves = {} end
     if not BananaLoot_DB.bankReserves then BananaLoot_DB.bankReserves = {} end
+    if not BananaLoot_DB.raidRolls then BananaLoot_DB.raidRolls = {} end
     if not BananaLoot_DB.lastOverwritten then BananaLoot_DB.lastOverwritten = {} end
     if not BananaLoot_DB.savedRaids then BananaLoot_DB.savedRaids = {} end
     -- [itemID] = { winner = Spielername } -- wer hat aktuell ein über
@@ -510,6 +511,17 @@ local LOCALE = {
         BR_OVERFLOW = "|cffff5555%d weitere Item(s) werden nicht angezeigt|r",
         UI_BTN_HR_TOOLTIP = "Hard-Reserve-Liste anzeigen",
         UI_BTN_BR_TOOLTIP = "Bankreserve-Liste anzeigen",
+        UI_BTN_RAIDLIST_TOOLTIP = "Raidroll-Liste anzeigen (Items werden automatisch unter dem Raid verlost)",
+        WIN_RAIDLIST_TITLE = "Raidroll-Items",
+        WIN_RAIDLIST_HINT = "Hinzufügen per /bl raidroll [Item][Item]... (Shift-Klick anhängen). Diese Items werden beim Looten automatisch unter allen per Masterloot erreichbaren Raidmitgliedern verlost. Bankreserve und Hard Reserve haben Vorrang.",
+        RAIDLIST_REMOVE_BTN = "Entfernen",
+        RAIDLIST_EMPTY = "|cff888888(keine Raidroll-Items)|r",
+        RAIDLIST_OVERFLOW = "|cffff5555%d weitere Item(s) werden nicht angezeigt|r",
+        CMD_RAIDLIST_ADDED = "|cff33ff99BananaLoot|r: %s zur Raidroll-Liste hinzugefügt.",
+        CMD_RAIDLIST_REMOVED = "|cff33ff99BananaLoot|r: Von der Raidroll-Liste entfernt.",
+        CMD_RAIDLIST_REMOVE_FAIL = "|cffff5555BananaLoot|r: Item nicht gefunden oder nicht auf der Raidroll-Liste.",
+        CMD_RAIDLIST_NEED_LINK = "|cffff5555BananaLoot|r: Bitte Item(s) per Shift-Klick anhängen, z.B. /bl raidroll [Item].",
+        RAIDLIST_AUTO_FAILED = "|cffff5555BananaLoot|r: Automatischer Raidroll für %s an %s fehlgeschlagen -- Item bleibt im Loot-Fenster.",
 
         -- LFM-Fenster
         WIN_LFM_TITLE = "LFM - Suche Mitspieler",
@@ -1046,6 +1058,17 @@ local LOCALE = {
         BR_OVERFLOW = "|cffff5555%d more item(s) not shown|r",
         UI_BTN_HR_TOOLTIP = "Show Hard Reserve list",
         UI_BTN_BR_TOOLTIP = "Show Bank Reserve list",
+        UI_BTN_RAIDLIST_TOOLTIP = "Show raid roll list (items are automatically rolled among the raid)",
+        WIN_RAIDLIST_TITLE = "Raid Roll Items",
+        WIN_RAIDLIST_HINT = "Add via /bl raidroll [Item][Item]... (shift-click to attach). These items are automatically rolled among all raid members reachable via master loot when looted. Bank Reserve and Hard Reserve take priority.",
+        RAIDLIST_REMOVE_BTN = "Remove",
+        RAIDLIST_EMPTY = "|cff888888(no raid roll items)|r",
+        RAIDLIST_OVERFLOW = "|cffff5555%d more item(s) not shown|r",
+        CMD_RAIDLIST_ADDED = "|cff33ff99BananaLoot|r: %s added to the raid roll list.",
+        CMD_RAIDLIST_REMOVED = "|cff33ff99BananaLoot|r: Removed from the raid roll list.",
+        CMD_RAIDLIST_REMOVE_FAIL = "|cffff5555BananaLoot|r: Item not found or not on the raid roll list.",
+        CMD_RAIDLIST_NEED_LINK = "|cffff5555BananaLoot|r: Please shift-click item(s), e.g. /bl raidroll [Item].",
+        RAIDLIST_AUTO_FAILED = "|cffff5555BananaLoot|r: Automatic raid roll for %s to %s failed -- item stays in the loot window.",
 
         -- LFM window
         WIN_LFM_TITLE = "LFM - Looking For More",
@@ -1730,6 +1753,9 @@ function BananaLoot:AddHardReserve(itemLink)
     local id = GetItemIDFromLink(itemLink)
     if not id then return false end
     EnsureDB()
+    -- Ein Item steht immer nur in EINER Liste (BR > HR > Raidroll).
+    BananaLoot_DB.bankReserves[id] = nil
+    BananaLoot_DB.raidRolls[id] = nil
     BananaLoot_DB.hardReserves[id] = { link = itemLink }
     return true, id
 end
@@ -1763,6 +1789,8 @@ function BananaLoot:AddBankReserve(itemLink)
     local id = GetItemIDFromLink(itemLink)
     if not id then return false end
     EnsureDB()
+    BananaLoot_DB.hardReserves[id] = nil
+    BananaLoot_DB.raidRolls[id] = nil
     BananaLoot_DB.bankReserves[id] = { link = itemLink }
     return true, id
 end
@@ -1779,6 +1807,55 @@ end
 function BananaLoot:GetBankReserveList()
     EnsureDB()
     return BananaLoot_DB.bankReserves
+end
+
+-- ============================================================
+-- 1b-3) RAIDROLL-LISTE -- Items, die beim Looten automatisch per
+-- Zufalls-Raidroll (siehe DoRaidRoll/AwardRaidRollItem) unter den im Raid
+-- anwesenden und per Masterloot erreichbaren Spielern vergeben werden,
+-- ohne dass der Lootmaster jedes Mal manuell eingreifen muss.
+-- Prioritaet bei Ueberschneidung: Bankreserve > Hard Reserve > Raidroll.
+-- ============================================================
+function BananaLoot:IsRaidRollItem(itemID)
+    EnsureDB()
+    return BananaLoot_DB.raidRolls[itemID] ~= nil
+end
+
+function BananaLoot:AddRaidRollItem(itemLink)
+    local id = GetItemIDFromLink(itemLink)
+    if not id then return false end
+    EnsureDB()
+    BananaLoot_DB.hardReserves[id] = nil
+    BananaLoot_DB.bankReserves[id] = nil
+    BananaLoot_DB.raidRolls[id] = { link = itemLink }
+    return true, id
+end
+
+function BananaLoot:RemoveRaidRollItem(itemID)
+    EnsureDB()
+    if BananaLoot_DB.raidRolls[itemID] then
+        BananaLoot_DB.raidRolls[itemID] = nil
+        return true
+    end
+    return false
+end
+
+function BananaLoot:GetRaidRollList()
+    EnsureDB()
+    return BananaLoot_DB.raidRolls
+end
+
+-- Alle Item-Links aus einem Text (z.B. mehrere per Shift-Klick angehaengte).
+function BananaLoot:ExtractAllLinks(msg)
+    local links = {}
+    local init = 1
+    while true do
+        local s, e = string.find(msg, "|c%x+|Hitem:.-|h%[.-%]|h|r", init)
+        if not s then break end
+        table.insert(links, string.sub(msg, s, e))
+        init = e + 1
+    end
+    return links
 end
 
 -- ============================================================
@@ -3259,8 +3336,47 @@ end
 -- anwesenden Spielern (unabhängig von SR-Reservierungen). Es findet kein
 -- echter /roll der Spieler statt -- die Auswahl passiert vollständig lokal,
 -- nur das Ergebnis wird im Raid-/Gruppenchat angesagt.
+-- Kandidaten fuer einen Raidroll: Spieler, die im Raid/der Gruppe sind UND
+-- per Masterloot Items erhalten koennen (GetMasterLootCandidate). So bleibt
+-- kein Item bei einem unerreichbaren Gewinner liegen. Kann die Kandidatenliste
+-- nicht gelesen werden, wird auf den Raid-Roster zurueckgefallen.
+function BananaLoot:GetRaidRollCandidates()
+    local roster = self:GetRosterNames()
+    if self.testMode then return roster end
+
+    local cand = {}
+    local seen = {}
+    local function collect(useSlotArg)
+        for i = 1, 40 do
+            local ok, name
+            if useSlotArg then
+                ok, name = pcall(GetMasterLootCandidate, 1, i)
+            else
+                ok, name = pcall(GetMasterLootCandidate, i)
+            end
+            if ok and name and not seen[name] then
+                seen[name] = true
+                table.insert(cand, name)
+            end
+        end
+    end
+    collect(false)
+    if table.getn(cand) < 2 then collect(true) end
+
+    if table.getn(cand) == 0 then return roster end
+
+    local inRoster = {}
+    for i = 1, table.getn(roster) do inRoster[roster[i]] = true end
+    local filtered = {}
+    for i = 1, table.getn(cand) do
+        if inRoster[cand[i]] then table.insert(filtered, cand[i]) end
+    end
+    if table.getn(filtered) == 0 then return cand end
+    return filtered
+end
+
 function BananaLoot:DoRaidRoll(itemID)
-    local names = self:GetRosterNames()
+    local names = self:GetRaidRollCandidates()
     if table.getn(names) == 0 then return false end
 
     local res = self.reservations[itemID]
@@ -3272,6 +3388,53 @@ function BananaLoot:DoRaidRoll(itemID)
 
     self:AwardItem(itemID, winner, self:L("POOL_RAIDROLL"), "raidroll")
     return true, winner
+end
+
+-- Vergibt EIN Item der Raidroll-Liste direkt beim Oeffnen des Loot-Fensters.
+-- Gewinner wird erst angesagt/geloggt, wenn die Zuteilung geklappt hat; sonst
+-- bleibt das Item im Loot-Fenster fuer die normale Verarbeitung.
+function BananaLoot:AwardRaidRollItem(itemID, link, usedSlots)
+    local names = self:GetRaidRollCandidates()
+    if table.getn(names) == 0 then return false end
+    local winner = names[math.random(1, table.getn(names))]
+
+    local assigned = self:AssignLoot(itemID, winner, usedSlots)
+    if not assigned then
+        DEFAULT_CHAT_FRAME:AddMessage(string.format(self:L("RAIDLIST_AUTO_FAILED"), link, winner))
+        return false
+    end
+
+    pcall(function()
+        SendChatMessage(string.format(self:L("RAID_ROLL_ANNOUNCE"), link, winner), self:GetAnnounceChannel())
+    end)
+    self:LogAward(link, winner, self:L("POOL_RAIDROLL"))
+    EnsureDB()
+    BananaLoot_DB.awardedItems[itemID] = { winner = winner }
+    BroadcastAward(itemID, winner, "raidroll")
+    if BananaLoot_UI and BananaLoot_UI.AddHistoryEntry then
+        BananaLoot_UI:AddHistoryEntry(itemID, winner, "raidroll")
+    end
+    DEFAULT_CHAT_FRAME:AddMessage(string.format(self:L("AWARD_ASSIGNED"), link, winner))
+    return true
+end
+
+-- Filtert Items der Raidroll-Liste aus einer Item-Liste heraus und vergibt
+-- sie sofort per Raidroll. Gibt die verbleibende Liste zurueck. Items, die
+-- zugleich Bankreserve oder Hard Reserve sind, werden hier nie angefasst.
+function BananaLoot:ProcessRaidRollItems(items)
+    local remaining = {}
+    local usedSlots = {}
+    for i = 1, table.getn(items) do
+        local it = items[i]
+        if self:IsRaidRollItem(it.itemID) and not self:IsHardReserve(it.itemID) and not self:IsBankReserve(it.itemID) then
+            if not self:AwardRaidRollItem(it.itemID, it.link, usedSlots) then
+                table.insert(remaining, it)
+            end
+        else
+            table.insert(remaining, it)
+        end
+    end
+    return remaining
 end
 
 -- ============================================================
@@ -3462,6 +3625,7 @@ function BananaLoot:OnLootOpened()
     if table.getn(items) == 0 then return end
 
     items = self:ProcessBankReserveItems(items)
+    items = self:ProcessRaidRollItems(items)
     if table.getn(items) == 0 then return end
 
     -- Signatur-Abgleich: wurde exakt dasselbe Loot-Fenster (gleicher
@@ -3533,6 +3697,7 @@ end
 function BananaLoot:StartAutoMode()
     local items = self:ScanLootWindow()
     items = self:ProcessBankReserveItems(items)
+    items = self:ProcessRaidRollItems(items)
     self.lootQueue = items
     self.lootCounts = BuildLootCounts(items)
     self:AutoAdvance()
@@ -3650,7 +3815,7 @@ end
 --                              (ausser Reichweite, andere Zone, Geist, offline)
 -- Zentrale Stelle für ALLE Vergabewege (Roll, /bl award, Verwalten-Fenster,
 -- Raid Roll, Bankreserve, Mehrfachgewinner).
-function BananaLoot:AssignLoot(itemID, winnerName)
+function BananaLoot:AssignLoot(itemID, winnerName, usedSlots)
     if self.testMode then
         -- Simulierte Vergabe: nimmt eine Kopie aus dem Fake-Loot-Fenster,
         -- ruehrt aber nie die echte Loot-API (GiveMasterLoot) an.
@@ -3671,13 +3836,17 @@ function BananaLoot:AssignLoot(itemID, winnerName)
         local slotLink = GetLootSlotLink(slot)
         if slotLink then
             local _, _, slotItemID = string.find(slotLink, "item:(%d+)")
-            if slotItemID and tonumber(slotItemID) == itemID then
+            if slotItemID and tonumber(slotItemID) == itemID and not (usedSlots and usedSlots[slot]) then
                 foundSlot = slot
                 break
             end
         end
     end
     if not foundSlot then return false, "noslot" end
+    -- usedSlots: Slots, die in diesem Durchlauf schon vergeben wurden (das
+    -- Loot-Fenster aktualisiert sich erst verzoegert) -- verhindert, dass
+    -- bei Mehrfachdrops zweimal derselbe Slot angesprochen wird.
+    if usedSlots then usedSlots[foundSlot] = true end
 
     if self:TryGiveMasterLoot(foundSlot, winnerName) then return true end
     return false, "nocand"
@@ -4824,6 +4993,9 @@ function BananaLoot:ExportSRList()
     for id, hr in pairs(BananaLoot_DB.hardReserves) do
         table.insert(records, "H^" .. id .. "^" .. hr.link)
     end
+    for id, rr in pairs(BananaLoot_DB.raidRolls) do
+        table.insert(records, "R^" .. id .. "^" .. rr.link)
+    end
 
     return "MSRv2~" .. table.concat(records, "~")
 end
@@ -4862,6 +5034,14 @@ function BananaLoot:ImportSRList(str)
             local fields = Split(rec, "^")
             if fields[1] == "T" then
                 exportTime = tonumber(fields[2])
+            elseif fields[1] == "R" then
+                if table.getn(fields) >= 3 then
+                    local rrId = tonumber(fields[2])
+                    if rrId then
+                        EnsureDB()
+                        BananaLoot_DB.raidRolls[rrId] = { link = fields[3] }
+                    end
+                end
             elseif fields[1] == "H" then
                 if table.getn(fields) >= 3 then
                     local hrId = tonumber(fields[2])
@@ -5876,6 +6056,36 @@ SlashCmdList["BANANALOOT"] = function(msg)
             if BananaLoot_UI and BananaLoot_UI.Refresh then BananaLoot_UI:Refresh() end
         else
             DEFAULT_CHAT_FRAME:AddMessage(BananaLoot:L("CMD_BR_NEED_LINK"))
+        end
+
+    elseif cmd == "raidroll" then
+        if BananaLoot_UI and BananaLoot_UI.ShowRaidRollList then BananaLoot_UI:ShowRaidRollList() end
+
+    elseif string.find(cmd, "^raidroll remove") then
+        local links = BananaLoot:ExtractAllLinks(msg)
+        local removed = 0
+        for i = 1, table.getn(links) do
+            local id = GetItemIDFromLink(links[i])
+            if id and BananaLoot:RemoveRaidRollItem(id) then removed = removed + 1 end
+        end
+        if removed > 0 then
+            DEFAULT_CHAT_FRAME:AddMessage(BananaLoot:L("CMD_RAIDLIST_REMOVED"))
+        else
+            DEFAULT_CHAT_FRAME:AddMessage(BananaLoot:L("CMD_RAIDLIST_REMOVE_FAIL"))
+        end
+        if BananaLoot_UI and BananaLoot_UI.Refresh then BananaLoot_UI:Refresh() end
+
+    elseif string.find(cmd, "^raidroll") then
+        local links = BananaLoot:ExtractAllLinks(msg)
+        if table.getn(links) == 0 then
+            DEFAULT_CHAT_FRAME:AddMessage(BananaLoot:L("CMD_RAIDLIST_NEED_LINK"))
+        else
+            for i = 1, table.getn(links) do
+                if BananaLoot:AddRaidRollItem(links[i]) then
+                    DEFAULT_CHAT_FRAME:AddMessage(string.format(BananaLoot:L("CMD_RAIDLIST_ADDED"), links[i]))
+                end
+            end
+            if BananaLoot_UI and BananaLoot_UI.Refresh then BananaLoot_UI:Refresh() end
         end
 
     elseif cmd == "stop" then

@@ -259,6 +259,22 @@ srHRBtn:SetScript("OnEnter", function()
 end)
 srHRBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
+local srRLBtn = CreateFrame("Button", "BananaLootSRRLBtn", srFrame, "UIPanelButtonTemplate")
+srRLBtn:SetWidth(26)
+srRLBtn:SetHeight(20)
+srRLBtn:SetPoint("RIGHT", srHRBtn, "LEFT", -4, 0)
+srRLBtn:SetText("RL")
+srRLBtn:SetScript("OnClick", function()
+    BananaLoot:PlayClickSound()
+    if BananaLoot_UI.ShowRaidRollList then BananaLoot_UI:ShowRaidRollList() end
+end)
+srRLBtn:SetScript("OnEnter", function()
+    GameTooltip:SetOwner(srRLBtn, "ANCHOR_LEFT")
+    GameTooltip:SetText(BananaLoot:L("UI_BTN_RAIDLIST_TOOLTIP"))
+    GameTooltip:Show()
+end)
+srRLBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
 -- ------------------------------------------------------------
 -- Kopfzeile: Hinweistext + Steuerbuttons (Export/Import/Optionen/Lock/
 -- Loot-Fenster oeffnen) -- alles, was die SR-Liste als Ganzes betrifft.

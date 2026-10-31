@@ -605,6 +605,22 @@ ANPASSUNGEN
 
 CHANGELOG
 ---------
+v3.41 (vs. v3.40)
+ - New: Raid roll list (button "RL" in the SR window, /bl raidroll
+   [Item][Item]..., /bl raidroll remove [Item]). Items on the list are
+   rolled automatically when the loot window opens (also in auto mode):
+   the winner is picked randomly among raid members who are in the raid
+   AND reachable via master loot, announced in raid/group chat, assigned
+   and logged as "Raid Roll". Multiple copies are rolled one by one.
+   If an assignment fails, the item stays in the loot window.
+ - Priority when an item is on several lists: Bank Reserve > Hard
+   Reserve > Raid roll. Adding an item to one list (HR, BR or raid roll)
+   removes it from the other two.
+ - The raid roll list is part of the normal export/import string
+   (record "R"), so it can be shared quickly in the raid.
+ - Changed: The manual "Raid Roll" button in the Manage window now also
+   only picks from raid members reachable via master loot.
+
 v3.40 (vs. v3.38)
  - New: Name mapping manager: lists all saved mappings (import name ->
    ingame name) with a Remove button per entry. Open it via Options
