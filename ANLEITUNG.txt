@@ -605,7 +605,7 @@ ANPASSUNGEN
 
 CHANGELOG
 ---------
-v3.39 (vs. v3.38)
+v3.40 (vs. v3.38)
  - New: Name mapping manager: lists all saved mappings (import name ->
    ingame name) with a Remove button per entry. Open it via Options
    ("Name mappings"), the "Manage mappings" button in the match-names
@@ -619,6 +619,18 @@ v3.39 (vs. v3.38)
    name is saved as a mapping for future imports.
  - New: Confirmation prompt when a different name is matched to your own
    character.
+ - New: Shift+left-click on an item icon (SR window, loot window,
+   roll-sync popup) inserts the item link into the open chat edit box.
+ - Fixed: The "Name mappings" button was shown on every options tab; it
+   now only appears on the Management tab.
+ - New: "Manage" window: after "Add" a choice appears: "This drop only"
+   adds the player as a temporary reserver (can roll and be picked as
+   winner, but replaces no SR, has no SR+, is not raised at raid end and
+   is hidden in the SR window/export) or "Add to SR list" (previous
+   behaviour). Temporary entries are removed when the item is awarded,
+   skipped or the reservation is deleted.
+ - Changed: Side menu of the SR window reworked: wider panel, uniform
+   button size, more spacing and grouped sections with separators.
 
 v3.34 (vs. v3.32)
  - Note: v3.33 was never published, so this entry includes its changes.

@@ -5,7 +5,7 @@
 -- Vanilla 1.12 kompatibel (Lua 5.0 -> KEIN "#" Operator, KEIN string.gmatch!)
 
 BananaLoot = {}
-BananaLoot.VERSION = "3.39"
+BananaLoot.VERSION = "3.40"
 BananaLoot.DB_VERSION = 1 -- bei künftigen Strukturänderungen an BananaLoot_DB erhöhen und Migration in MigrateDB() ergänzen
 
 -- ============================================================
@@ -484,6 +484,12 @@ local LOCALE = {
         MG_OVERFLOW = "|cffff5555%d weitere Spieler werden nicht angezeigt (Limit %d)|r",
         MG_ADD_LABEL = "Spieler manuell hinzufügen (genaue Schreibweise):",
         MG_ADD_BTN = "Hinzufügen",
+        MG_CHOICE_TITLE = "Spieler hinzufügen",
+        MG_CHOICE_TEXT = "%s zu diesem Item hinzufügen:",
+        MG_CHOICE_TEMP = "Nur für diesen Drop",
+        MG_CHOICE_SR = "In SR-Liste übernehmen",
+        MG_CHOICE_CANCEL = "Abbrechen",
+        MG_TEMP_TAG = " |cff88aaff(nur dieser Drop)|r",
         MG_REMOVE_ITEM_BTN = "Item komplett entfernen",
         MG_REMOVE_RESERVATION_BTN = "Reservierung löschen",
         MG_SKIP_DROP_BTN = "Drop überspringen",
@@ -1016,6 +1022,12 @@ local LOCALE = {
         MG_OVERFLOW = "|cffff5555%d more player(s) not shown (limit %d)|r",
         MG_ADD_LABEL = "Manually add a player (exact spelling):",
         MG_ADD_BTN = "Add",
+        MG_CHOICE_TITLE = "Add player",
+        MG_CHOICE_TEXT = "Add %s to this item:",
+        MG_CHOICE_TEMP = "This drop only",
+        MG_CHOICE_SR = "Add to SR list",
+        MG_CHOICE_CANCEL = "Cancel",
+        MG_TEMP_TAG = " |cff88aaff(this drop only)|r",
         MG_REMOVE_ITEM_BTN = "Remove item completely",
         MG_REMOVE_RESERVATION_BTN = "Delete reservation",
         MG_SKIP_DROP_BTN = "Skip drop",
@@ -1996,6 +2008,58 @@ function BananaLoot:AddReservation(itemLink, playerName, forceIgnoreHR)
     return true, id, oldId
 end
 
+-- Temporaere Reservierung ("nur fuer diesen Drop"): der Spieler steht nur in
+-- res.players/res.order (rollberechtigt, waehlbar), aber NICHT in
+-- playerReservedItems -> ersetzt keine SR, hat kein SR+ und wird beim
+-- Raid-Ende nicht erhoeht. Im SR-Fenster/Export wird er ausgeblendet.
+function BananaLoot:IsTempReservation(itemID, playerName)
+    local res = self.reservations[itemID]
+    if res and res.temp and res.temp[playerName] then return true end
+    return false
+end
+
+function BananaLoot:CountRealReservers(res)
+    local n = 0
+    for i = 1, table.getn(res.order) do
+        if not (res.temp and res.temp[res.order[i]]) then n = n + 1 end
+    end
+    return n
+end
+
+function BananaLoot:AddTempReservation(itemLink, playerName)
+    local id = GetItemIDFromLink(itemLink)
+    if not id then return false, "invalid_link" end
+    local res = self.reservations[id]
+    if not res then
+        res = { link = itemLink, name = GetItemNameFromLink(itemLink), players = {}, order = {}, tempOnly = true }
+        self.reservations[id] = res
+    end
+    if res.players[playerName] then return true, "exists" end
+    res.players[playerName] = true
+    table.insert(res.order, playerName)
+    res.temp = res.temp or {}
+    res.temp[playerName] = true
+    self:SaveSession()
+    return true
+end
+
+-- Entfernt alle temporaeren Eintraege eines Items (Drop vergeben/uebersprungen).
+function BananaLoot:ClearTempReservations(itemID)
+    local res = self.reservations[itemID]
+    if not res or not res.temp then return end
+    for name, _ in pairs(res.temp) do
+        res.players[name] = nil
+        RemovePlayerFromOrder(res.order, name)
+    end
+    res.temp = nil
+    if res.tempOnly and table.getn(res.order) == 0 then
+        self.reservations[itemID] = nil
+    else
+        res.tempOnly = nil
+    end
+    self:SaveSession()
+end
+
 function BananaLoot:RemoveReservation(itemLink, playerName)
     local id = GetItemIDFromLink(itemLink)
     if not id then return false end
@@ -2005,6 +2069,10 @@ function BananaLoot:RemoveReservation(itemLink, playerName)
     res.players[playerName] = nil
     RemovePlayerFromOrder(res.order, playerName)
     self:RemoveItemFromPlayerList(playerName, id)
+    if res.temp then
+        res.temp[playerName] = nil
+        if next(res.temp) == nil then res.temp = nil end
+    end
 
     -- War das der letzte Reservierer, bleibt sonst ein leerer Eintrag
     -- stehen, der in der UI dauerhaft als "[Offen]" auftaucht. Nur
@@ -2188,7 +2256,7 @@ local WHISPER_LIST_MAX_OTHERS = 8
 function BananaLoot:ReplyWithPlayerList(sender)
     local found = false
     for id, res in pairs(self.reservations) do
-        if res.players[sender] then
+        if res.players[sender] and not (res.temp and res.temp[sender]) then
             found = true
             local stack = self:GetStack(sender, id)
             local bonusTxt = ""
@@ -3014,6 +3082,7 @@ function BananaLoot:AwardItem(itemID, winnerName, poolOverride, poolCodeOverride
             res.players[winnerName] = nil
             RemovePlayerFromOrder(res.order, winnerName)
         end
+        if res.temp then res.temp[winnerName] = nil end
         self:RemoveItemFromPlayerList(winnerName, itemID)
     end
 
@@ -4739,12 +4808,14 @@ function BananaLoot:ExportSRList()
     -- erkennen kann, wie alt die exportierte Liste ist.
     table.insert(records, "T^" .. tostring(time()))
     for id, res in pairs(self.reservations) do
-        if table.getn(res.order) > 0 then
+        if self:CountRealReservers(res) > 0 then
             local playerParts = {}
             for i = 1, table.getn(res.order) do
                 local name = res.order[i]
-                local stack = self:GetStack(name, id)
-                table.insert(playerParts, name .. ":" .. stack)
+                if not (res.temp and res.temp[name]) then
+                    local stack = self:GetStack(name, id)
+                    table.insert(playerParts, name .. ":" .. stack)
+                end
             end
             table.insert(records, id .. "^" .. res.link .. "^" .. table.concat(playerParts, "`"))
         end
@@ -4898,8 +4969,10 @@ function BananaLoot:ExportReservationsCSV()
         local itemName = GetItemNameFromLink(res.link) or res.link
         for p = 1, table.getn(res.order) do
             local name = res.order[p]
-            local stack = self:GetStack(name, id)
-            table.insert(lines, itemName .. "\t" .. name .. "\t" .. (stack * self:GetBonusPerStack()))
+            if not (res.temp and res.temp[name]) then
+                local stack = self:GetStack(name, id)
+                table.insert(lines, itemName .. "\t" .. name .. "\t" .. (stack * self:GetBonusPerStack()))
+            end
         end
     end
     return table.concat(lines, "\n")

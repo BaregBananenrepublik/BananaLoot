@@ -856,7 +856,7 @@ AddToTab(TAB_DISPLAY, {
 
 AddToTab(TAB_MANAGE, {
     manageSectionLabel, optResetBtn, optWipeBtn, optCsvBtn, optCsvLogBtn,
-    optClearLogBtn, recoveryBtn, BananaLoot_UI.optTestBtn, BananaLoot_UI.optRaidleadBtn,
+    optClearLogBtn, optAliasBtn, recoveryBtn, BananaLoot_UI.optTestBtn, BananaLoot_UI.optRaidleadBtn,
     BananaLoot_UI.rlEnableCheck, BananaLoot_UI.rlEnableLabel, BananaLoot_UI.rlEnableHint,
     BananaLoot_UI.ubrsCheck, BananaLoot_UI.ubrsLabel, BananaLoot_UI.ubrsHint })
 
@@ -1332,9 +1332,16 @@ local function RefreshManage()
             local stack = BananaLoot:GetStack(name, id)
             local bonusTxt = ""
             if stack > 0 then bonusTxt = " |cffffcc00(+" .. (stack * BananaLoot:GetBonusPerStack()) .. ")|r" end
-            row.nameText:SetText(BananaLoot:ColoredName(name) .. bonusTxt)
-            row.minusBtn:Show()
-            row.plusBtn:Show()
+            local isTemp = BananaLoot:IsTempReservation(id, name)
+            if isTemp then
+                row.nameText:SetText(BananaLoot:ColoredName(name) .. BananaLoot:L("MG_TEMP_TAG"))
+                row.minusBtn:Hide()
+                row.plusBtn:Hide()
+            else
+                row.nameText:SetText(BananaLoot:ColoredName(name) .. bonusTxt)
+                row.minusBtn:Show()
+                row.plusBtn:Show()
+            end
             row.removeBtn:SetText(BananaLoot:L("MG_REMOVE_BTN"))
             row.removeBtn:Show()
             row.winBtn:SetText(BananaLoot:L("MG_WIN_BTN"))
@@ -1403,6 +1410,97 @@ mgAddBtn:SetWidth(80)
 mgAddBtn:SetHeight(20)
 mgAddBtn:SetPoint("LEFT", mgAddBox, "RIGHT", 10, 0)
 RegisterLocaleText(mgAddBtn, "MG_ADD_BTN")
+-- Auswahlfenster nach "Hinzufuegen": nur fuer diesen Drop oder in die SR-Liste.
+-- Als BananaLoot_UI.mgChoice statt als Top-Level-Local (Locals-Limit der Datei).
+do
+    local f = CreateFrame("Frame", "BananaLootManageChoiceFrame", UIParent)
+    f:SetWidth(380)
+    f:SetHeight(170)
+    f:SetPoint("CENTER", UIParent, "CENTER", 0, 60)
+    f:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+        tile = true, tileSize = 32, edgeSize = 32,
+        insets = { left = 11, right = 11, top = 11, bottom = 11 },
+    })
+    f:SetFrameStrata("FULLSCREEN_DIALOG")
+    f:EnableMouse(true)
+    f:Hide()
+    tinsert(UISpecialFrames, "BananaLootManageChoiceFrame")
+
+    f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    f.title:SetPoint("TOP", f, "TOP", 0, -18)
+    f.text = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    f.text:SetPoint("TOP", f, "TOP", 0, -48)
+    f.text:SetWidth(330)
+
+    f.tempBtn = CreateFrame("Button", "BananaLootManageChoiceTempBtn", f, "UIPanelButtonTemplate")
+    f.tempBtn:SetWidth(165)
+    f.tempBtn:SetHeight(28)
+    f.tempBtn:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 20, 58)
+
+    f.srBtn = CreateFrame("Button", "BananaLootManageChoiceSRBtn", f, "UIPanelButtonTemplate")
+    f.srBtn:SetWidth(165)
+    f.srBtn:SetHeight(28)
+    f.srBtn:SetPoint("LEFT", f.tempBtn, "RIGHT", 10, 0)
+
+    f.cancelBtn = CreateFrame("Button", "BananaLootManageChoiceCancelBtn", f, "UIPanelButtonTemplate")
+    f.cancelBtn:SetWidth(120)
+    f.cancelBtn:SetHeight(24)
+    f.cancelBtn:SetPoint("BOTTOM", f, "BOTTOM", 0, 22)
+
+    local function Finish()
+        f:Hide()
+        mgAddBox:SetText("")
+        RefreshManage()
+        if BananaLoot_UI and BananaLoot_UI.Refresh then BananaLoot_UI:Refresh() end
+    end
+
+    local function WarnIfNotInRoster(name)
+        if not BananaLoot:IsPlayerInRoster(name) then
+            DEFAULT_CHAT_FRAME:AddMessage(string.format(BananaLoot:L("MANAGE_ADD_WARNING"), name))
+        end
+    end
+
+    f.tempBtn:SetScript("OnClick", function()
+        BananaLoot:PlayClickSound()
+        if f.pendingLink and f.pendingName then
+            BananaLoot:AddTempReservation(f.pendingLink, f.pendingName)
+            WarnIfNotInRoster(f.pendingName)
+        end
+        Finish()
+    end)
+    f.srBtn:SetScript("OnClick", function()
+        BananaLoot:PlayClickSound()
+        if f.pendingLink and f.pendingName then
+            -- forceIgnoreHR = true: der Loot-Master darf im Verwalten-Fenster
+            -- auch fuer Hard-Reserve-Items direkt einen Spieler hinterlegen
+            -- (z.B. um danach ueber "Gewinner" manuell zu vergeben).
+            BananaLoot:AddReservation(f.pendingLink, f.pendingName, true)
+            WarnIfNotInRoster(f.pendingName)
+        end
+        Finish()
+    end)
+    f.cancelBtn:SetScript("OnClick", function()
+        BananaLoot:PlayClickSound()
+        f:Hide()
+    end)
+
+    BananaLoot_UI.mgChoice = f
+end
+
+function BananaLoot_UI:ShowAddChoice(link, name)
+    local f = BananaLoot_UI.mgChoice
+    f.pendingLink = link
+    f.pendingName = name
+    f.title:SetText(BananaLoot:L("MG_CHOICE_TITLE"))
+    f.text:SetText(string.format(BananaLoot:L("MG_CHOICE_TEXT"), BananaLoot:ColoredName(name)))
+    f.tempBtn:SetText(BananaLoot:L("MG_CHOICE_TEMP"))
+    f.srBtn:SetText(BananaLoot:L("MG_CHOICE_SR"))
+    f.cancelBtn:SetText(BananaLoot:L("MG_CHOICE_CANCEL"))
+    f:Show()
+end
+
 mgAddBtn:SetScript("OnClick", function()
     BananaLoot:PlayClickSound()
     local name = mgAddBox:GetText()
@@ -1411,16 +1509,7 @@ mgAddBtn:SetScript("OnClick", function()
         local res = BananaLoot.reservations[id]
         local link = (res and res.link) or BananaLoot.knownLootItems[id]
         if link then
-            -- forceIgnoreHR = true: der Loot-Master darf im Verwalten-Fenster
-            -- auch für Hard-Reserve-Items direkt einen Spieler hinterlegen
-            -- (z.B. um danach über "Gewinner" manuell zu vergeben).
-            BananaLoot:AddReservation(link, name, true)
-            if not BananaLoot:IsPlayerInRoster(name) then
-                DEFAULT_CHAT_FRAME:AddMessage(string.format(BananaLoot:L("MANAGE_ADD_WARNING"), name))
-            end
-            mgAddBox:SetText("")
-            RefreshManage()
-            if BananaLoot_UI and BananaLoot_UI.Refresh then BananaLoot_UI:Refresh() end
+            BananaLoot_UI:ShowAddChoice(link, name)
         end
     end
 end)
@@ -1455,6 +1544,7 @@ mgRemoveItemBtn:SetScript("OnClick", function()
         -- und ist weiterhin im SR-Fenster sichtbar/bearbeitbar.
         BananaLoot.knownLootItems[id] = nil
         BananaLoot.lootCounts[id] = nil
+        BananaLoot:ClearTempReservations(id)
         if BananaLoot.activeRoll and BananaLoot.activeRoll.itemID == id then
             BananaLoot.activeRoll = nil
         end
@@ -2669,7 +2759,7 @@ mmButton:SetScript("OnEnter", function()
     -- wenn es überhaupt Reservierungen gibt.
     local ids = {}
     for id, res in pairs(BananaLoot.reservations) do
-        if table.getn(res.order) > 0 then table.insert(ids, id) end
+        if BananaLoot:CountRealReservers(res) > 0 then table.insert(ids, id) end
     end
     if table.getn(ids) > 0 then
         table.sort(ids)
@@ -2679,10 +2769,12 @@ mmButton:SetScript("OnEnter", function()
             local res = BananaLoot.reservations[id]
             for p = 1, table.getn(res.order) do
                 local name = res.order[p]
-                local stack = BananaLoot:GetStack(name, id)
-                local bonusTxt = ""
-                if stack > 0 then bonusTxt = " (+" .. (stack * BananaLoot:GetBonusPerStack()) .. ")" end
-                table.insert(lines, BananaLoot:ColoredName(name) .. ": " .. res.link .. bonusTxt)
+                if not (res.temp and res.temp[name]) then
+                    local stack = BananaLoot:GetStack(name, id)
+                    local bonusTxt = ""
+                    if stack > 0 then bonusTxt = " (+" .. (stack * BananaLoot:GetBonusPerStack()) .. ")" end
+                    table.insert(lines, BananaLoot:ColoredName(name) .. ": " .. res.link .. bonusTxt)
+                end
             end
         end
 
